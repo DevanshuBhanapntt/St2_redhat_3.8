@@ -1,0 +1,102 @@
+---
+name: cpu_check_unix
+pack: ntt_monitoring
+description: Gather CPU utilization information for the given VM and CPU name
+runner_type: orquesta
+entry_point: workflows/cpu_check_unix.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  os_type:
+    type: string
+    description: "Operating system type of the server (windows, linux)"
+    required: true
+    default: "linux"
+  os_name:
+    type: string
+    description: "Operating system type of the server from sensor if known."
+    required: false
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each CPU check"
+    required: false
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: "2"
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false 
+  configuration_item_name:
+    type: string
+    description: "configuration item name name from ITSM ticket"
+    required: false
+  threshold_percent:
+    type: integer
+    description: "Maximum acceptable CPU usage on the server"
+    required: false
+  local_server_ip:
+    type: string
+    description: "stackstorm server ip"
+    required: true
+    default: "{{ st2kv.system.local_server_ip }}"
+  local_server_user_key:
+    type: string
+    description: "stackstorm server username"
+    required: true
+    default: 'system.local_server_user'
+  local_server_pass_key:
+    type: string
+    description: "stackstorm server password"
+    required: true
+    default: 'system.local_server_pass'
+  ssh_password_key:
+    type: string
+    description: "ST2 key that stores ssh password for bolt runs"
+    required: false
+  ssh_username_key:
+    type: string
+    description: "ST2 key that stores ssh username for bolt runs"
+    required: false
+  ssh_tmp_dir_key:
+    type: string
+    description: "ST2 key that stores ssh tmp dir for bolt runs"
+    required: false

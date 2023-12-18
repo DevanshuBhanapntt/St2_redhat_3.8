@@ -1,0 +1,175 @@
+---
+name: disk_usage_check
+pack: ntt_monitoring
+description: Gather hard drive utilization information for the given VM and drive
+runner_type: orquesta
+entry_point: workflows/disk_usage_check.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Windows server to check the disk for"
+    required: true
+  cleanmgr_tasks:
+    description: "Whether or not to run cleanmgr tasks (empty recycle bin)"
+    type: string
+    required: false
+  compress_file_age_days:
+    description: "Age of files to run compression on (Days)"
+    type: integer
+    required: false
+  compress_file_exts:
+    description: "List of file extensions to compress (e.x. [':*.TXT', ':*.DOC'])"
+    type: array
+    required: false
+  compress_file_min_size_mb:
+    description: "Files larger than this size will get compressed"
+    type: integer
+    required: false
+  compress_files:
+    description: "Whether or not to compress all files with the given extension(s) that are older than the given age"
+    type: string
+    required: false
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  directories:
+    description: "List of directories (full paths) to clean if the disk utilization is above the given threshold"
+    type: array
+    required: false
+  disk_name:
+    type: string
+    description: "Name of the disk to check on the server"
+    required: true
+  file_extensions:
+    description: "List of file extensions to delete from the disk if it is above the threshold"
+    type: array
+    required: false
+  file_names:
+    description: "List of file names to delete from the disk if it is above the threshold"
+    type: array
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  max_failures:
+    type: integer
+    description: "Total number of times the memory utilization may be found to be above the threshold"
+    required: false
+  os_type:
+    type: string
+    description: "Operating system type of the server (windows, linux)"
+    required: true
+    default: "windows"
+  profile_age_days:
+    description: "Any profiles that haven't been used in this many days will be removed"
+    type: integer
+    required: false
+  recheck_limit:
+    type: integer
+    description: "Max number of times to check the disk utilization"
+    required: false
+  remove_profiles:
+    description: "Whether or not to remove profiles that have not been used in X amount of time (disk_clean_profile_age_days)"
+    type: string
+    required: false
+  remove_temp_files:
+    description: "Whether or not to clear all files from the temp directories"
+    type: string
+    required: false
+  remove_temp_ie_files:
+    description: "Whether or not to clear all files from the temp IE directories"
+    type: string
+    required: false
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false 
+  configuration_item_name:
+    type: string
+    description: "configuration item name name from ITSM ticket"
+    required: false
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each CPU check"
+    required: false
+  ssh_password_key:
+    type: string
+    description: "ST2 key that stores ssh password for bolt runs"
+    required: false
+  ssh_username_key:
+    type: string
+    description: "ST2 key that stores ssh username for bolt runs"
+    required: false
+  ssh_tmp_dir_key:
+    type: string
+    description: "ST2 key that stores ssh tmp dir for bolt runs"
+    required: false
+  temp_folders:
+    description: "List of temp folders to clear from the disk if it is above the threshold"
+    type: array
+    required: false
+  threshold_mb:
+    description: "Minimum acceptable free space for each disk (MB)"
+    type: integer
+    required: false
+  threshold_percent:
+    description: "Maximum acceptable disk usage on the server (percent)"
+    type: integer
+    required: false
+  threshold_type:
+    description: "Whether the threshold check should use a percent or MB"
+    type: string
+    required: false
+  valid_os_versions:
+    type: array
+    description: "List of OS versions that can be cleaned"
+    required: true
+    default: "{{ st2kv.system.disk_clean.valid_os_versions }}"
+  winrm_password_key:
+    type: string
+    description: "ST2 key that stores winrm password for bolt runs"
+    required: false
+  winrm_port_key:
+    type: integer
+    description: "ST2 key that stores winrm port for bolt runs"
+    required: false
+  winrm_username_key:
+    type: string
+    description: "ST2 key that stores winrm username for bolt runs"
+    required: false
+  winrm_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm ssl for bolt runs"
+    required: false
+  winrm_verify_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm verify_ssl for bolt runs"
+    required: false

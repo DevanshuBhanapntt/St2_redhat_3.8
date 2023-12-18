@@ -1,0 +1,173 @@
+---
+# We moved this to a Python action for performance improvements
+version: 1.0
+
+description: This workflow inserts the results of workflows into an SQL database
+
+input:
+  - account_name
+  - account_service
+  - configuration_item
+  - database
+  - drivername
+  - end_timestamp
+  - host
+  - incident_id
+  - metric_data
+  - metric_detail_procedure
+  - metric_procedure
+  - password
+  - port
+  - process_data
+  - process_procedure
+  - start_timestamp
+  - username
+
+vars:
+  - metric_detail_temp_dict: {}
+  - metric_temp_dict: {}
+
+tasks:
+  insert_am_process_data:
+    action: sql.procedure
+    input:
+      procedure_data: "{{ ctx().process_data }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().process_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_timestamps
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  get_timestamps:
+    action: ntt_monitoring.convert_timestamp
+    input:
+      data_dict: "{{ ctx().metric_data }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - metric_data: "{{ result().result }}"
+        do:
+          - insert_metrics
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  insert_metrics:
+    action: sql.procedure
+    input:
+      procedure_data: "{{ ctx().metric_data }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().metric_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - metric_id: "{{ result().result[0].METRIC_ID }}"
+        do:
+          - insert_incident_into_metric_details
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  insert_incident_into_metric_details:
+    action: sql.procedure
+    input:
+      procedure_data:
+        Name: "Incident_ID"
+        Value: "{{ ctx().incident_id }}"
+        Metric_ID: "{{ ctx().metric_id }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().metric_detail_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - insert_account_into_metric_details
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  insert_account_into_metric_details:
+    action: sql.procedure
+    input:
+      procedure_data:
+        Name: "Account Affected"
+        Value: "{{ ctx().account_name }}"
+        Metric_ID: "{{ ctx().metric_id }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().metric_detail_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - insert_item_into_metric_details
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  insert_item_into_metric_details:
+    action: sql.procedure
+    input:
+      procedure_data:
+        Name: "Configured Item"
+        Value: "{{ ctx().configuration_item }}"
+        Metric_ID: "{{ ctx().metric_id }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().metric_detail_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - insert_service_into_metric_details
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  insert_service_into_metric_details:
+    action: sql.procedure
+    input:
+      procedure_data:
+        Name: "Account Service"
+        Value: "{{ ctx().account_service }}"
+        Metric_ID: "{{ ctx().metric_id }}"
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: "{{ ctx().password }}"
+      port: "{{ ctx().port }}"
+      procedure_name: "{{ ctx().metric_detail_procedure }}"
+      username: "{{ ctx().username }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail

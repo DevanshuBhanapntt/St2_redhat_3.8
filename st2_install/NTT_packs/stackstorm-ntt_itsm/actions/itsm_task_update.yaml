@@ -1,0 +1,46 @@
+---
+name: itsm_task_update
+pack: ntt_itsm
+description: "Checks the ITSM type from the config file and updates the appropriate task with the given comment"
+runner_type: "python-script"
+entry_point: itsm_task_update.py
+enabled: true
+parameters:
+  close:
+    type: boolean
+    description: "Whether or not to close the task"
+    required: true
+    default: false
+  cancel:
+    type: boolean
+    description: "Whether or not to cancell the task"
+    required: true
+    default: false
+  escalate:
+    type: boolean
+    description: "Whether or not to escalate the task"
+    required: true
+    default: false
+  task_sys_id:
+    type: string
+    description: "Unique ID for the task to update"
+    required: true
+  notes:
+    type: string
+    description: "Work/close notes to add to the given task in ServiceNow"
+    required: false
+  work_in_progress:
+    type: boolean
+    description: "Whether or not to mark the task as a work in progress"
+    required: true
+    default: false
+  pending:
+    type: boolean
+    description: "Whether or not to mark the task as a pending state in Servicenow"
+    required: false
+    default: false
+  pending_mins:
+    type: integer
+    description: "How much times(mins) mark the task as a pending state in Servicenow"
+    required: false
+    default: 45

@@ -1,0 +1,71 @@
+---
+name: "get_command_output"
+pack: "ntt_monitoring"
+description: "To check the accesspoint status in controller network device"
+runner_type: "python-script"
+entry_point: get_command_output.py
+enabled: true
+parameters:
+  script_name:
+    type: string
+    description: "c login script path"
+    required: true
+    default: "/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh"
+  script_options:
+    type: string
+    description: "c login script options"
+    required: true
+    default: "-noenable"
+  username:
+    type: string
+    description: "Username to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "Password to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  mobility_command:
+    type: string
+    description: "Command to fetch controller mobility details"
+    required: true
+    default: "show mobility summary"
+  mac_command:
+    type: string
+    description: "Command to fetch mac address details"
+    required: true
+    default: "show ap search"
+  accesspoint_name:
+    type: string
+    description: "Accesspoint name to check for mac address"
+    required: true
+  ci_address:
+    type: string
+    description: "ci_address of the remote server"
+    required: true
+  mobility_start_index_check:
+    type: string
+    description: "Start index value for show mobility summary command"
+    required: true
+    default: "MAC Address"
+  ap_join_status_cmd:
+    type: string
+    description: "Command to fetch ap join status details"
+    required: true
+    default: "show ap join stats summary"
+  mac_start_index_check:
+    type: string
+    description: "Start index value for show ap join status summary"
+    required: true
+    default: "Ethernet MAC"
+  end_index_check:
+    type: string
+    description: "End index value for the commands"
+    required: true
+    default: "(Cisco Controller) >logout"
+  timeout:
+    type: integer
+    description: "timeout"
+    required: true
+    default: 1200

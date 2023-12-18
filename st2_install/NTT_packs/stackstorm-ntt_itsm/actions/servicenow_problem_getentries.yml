@@ -1,0 +1,21 @@
+---
+
+name: servicenow_problem_getentries
+pack: ntt_itsm
+description: "Reading the Problem information from ITSM"
+runner_type: "python-script"
+entry_point: servicenow_problem_getentries.py
+enabled: true
+parameters:
+  company:
+    type: string
+    description: "Company for the Problem to read the details"
+    required: true 
+  short_description:
+    type: string
+    description: "short description for the Problem to read the details"
+    required: true 
+  cmdb_ci:
+    type: string
+    description: "CI for the Problem to read the details"
+    required: true

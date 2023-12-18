@@ -1,0 +1,61 @@
+---
+name: unix_fs_management
+pack: ntt_monitoring
+description: To calculate the file system utilization of a Server
+runner_type: orquesta
+entry_point: workflows/unix_fs_management.yaml
+enabled: true
+parameters:
+  ci_address:
+    type: string
+    description: "IP address of the CI to ping"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false
+  mount_point:
+    type: string
+    description: "Mount Point of the file system"
+    required: false
+  file_threshold:
+    type: string
+    description: "File Threshold value for the utilization"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: false
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: false
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: false
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false 
+  configuration_item_name:
+    type: string
+    description: "configuration item name from ITSM to pass into the recurrence logic"
+    required: false

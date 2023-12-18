@@ -1,0 +1,16 @@
+{
+  "description": "Run cleanmgr tasks (empty recycle bin)",
+  "implementations": [
+    {"name": "disk_cleanmgr.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to check on the server",
+      "type": "String[1]"
+    }
+  }
+}

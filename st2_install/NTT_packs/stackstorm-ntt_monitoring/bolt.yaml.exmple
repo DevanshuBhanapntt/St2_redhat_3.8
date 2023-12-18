@@ -1,0 +1,20 @@
+---
+host_key_check: false
+ssl: true
+ssl_verify: false
+connect_timeout: 180
+# The path to our project should be the ntt_monitoring pack directory
+project: "/opt/stackstorm/packs/ntt_monitoring"
+# The path to the modules directory should be the following
+modulepath: "/opt/stackstorm/packs/ntt_monitoring/bolt/modules"
+
+credentials:
+  linux:
+    user: "{{ st2kv.system.linux.username }}"
+    password: "{{ st2kv.system.linux.password | decrypt_kv }}"
+  windows:
+    user: "{{ st2kv.system.winrm.username }}"
+    password: "{{ st2kv.system.winrm.password | decrypt_kv }}"
+    port: "{{ st2kv.system.winrm.port }}"
+    ssl: "{{ st2kv.system.winrm.ssl }}"
+    ssl_verify: "{{ st2kv.system.winrm.ssl_verify }}"

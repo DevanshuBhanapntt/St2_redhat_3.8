@@ -1,0 +1,6 @@
+---
+  class_name: "helixtasksensor"
+  entry_point: "helix_task_sensor.py"
+  description: "Sensor to find and keep a list of all the open tasks in Helix."
+  poll_interval: 180
+  enabled: false

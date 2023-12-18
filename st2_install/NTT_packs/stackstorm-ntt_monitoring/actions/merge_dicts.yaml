@@ -1,0 +1,12 @@
+---
+description: "Merges multiple dictionaries/hashes/objects together"
+enabled: true
+runner_type: "python-script"
+entry_point: merge_dicts.py
+name: merge_dicts
+pack: ntt_monitoring
+parameters:
+  dicts:
+    type: array
+    description: "Array of dictionaries/hashes/objects to merge"
+    required: true

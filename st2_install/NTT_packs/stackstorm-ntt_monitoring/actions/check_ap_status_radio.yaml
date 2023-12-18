@@ -1,0 +1,51 @@
+---
+name: 'check_ap_status_radio'
+pack: 'ntt_monitoring'
+description: 'To check the accesspoint antenna stauts'
+runner_type: 'python-script'
+entry_point: check_ap_status_radio.py
+enabled: true
+parameters:
+  script_name:
+    type: string
+    description: "c login script path"
+    required: true
+    default: "/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh"
+  script_options:
+    type: string
+    description: "c login script options"
+    required: true
+    default: "-noenable"
+  username:
+    type: string
+    description: "Username to login to remote server"
+    required: true
+    default: "bao_net_mon"
+  password:
+    type: string
+    description: "Password to login to remote server"
+    required: true
+    default: "JJjj1003"
+  radio_command:
+    type: string
+    description: "Command to fetch accesspoint antenna status"
+    required: true
+    default: 'show advanced 802.11$type$ summary'
+  ci_address:
+    type: string
+    description: "ci address of the remote server"
+    required: true
+  radio_start_index:
+    type: string
+    description: "Start index value of radio command"
+    required: true
+    default: 'AP Name'
+  radio_end_index:
+    type: string
+    description: "End index value of radio command"
+    required: true
+    default: '(Cisco Controller) >logout'
+  module_name:
+    type: string
+    description: "Accesspoint module name"
+    required: false

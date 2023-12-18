@@ -1,0 +1,50 @@
+{
+  "description": "Runs a script on a remote network device to retrieve results",
+  "implementations": [
+    {
+      "name": "nw_snmpwalk_check.sh"
+    }
+  ],
+  "parameters": {
+    "deviceip": {
+      "description": "deviceip",
+      "type": "String[1]"
+    },
+    "version": {
+      "description": "version",
+      "type": "String[1]"
+    },
+	"community": {
+      "description": "community",
+      "type": "String[1]"
+    },
+	"nms_ip": {
+      "description": "nms_ip",
+      "type": "String[1]"
+    },
+	"oid": {
+      "description": "oid",
+      "type": "String[1]"
+    },
+	"securityname": {
+      "description": "securityname",
+      "type": "String[1]"
+    },
+	"authprotocol": {
+      "description": "authprotocol",
+      "type": "String[1]"
+    },
+	"authkey": {
+      "description": "authkey",
+      "type": "String[1]"
+    },
+	"privkey": {
+      "description": "privkey",
+      "type": "String[1]"
+    },
+    "privprotocol": {
+      "description": "privprotocol",
+      "type": "String[1]"
+    }	
+  }
+}

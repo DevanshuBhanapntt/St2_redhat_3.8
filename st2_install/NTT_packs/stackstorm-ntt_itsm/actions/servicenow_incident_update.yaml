@@ -1,0 +1,31 @@
+---
+description: "Add comment, close, and/or escalate the given ServiceNow incident"
+enabled: true
+runner_type: "python-script"
+entry_point: servicenow_incident_update.py
+name: servicenow_incident_update
+pack: ntt_itsm
+parameters:
+  close:
+    type: boolean
+    description: "Whether or not to close the incident"
+    required: true
+    default: false
+  escalate:
+    type: boolean
+    description: "Whether or not to escalate the incident"
+    required: true
+    default: false
+  inc_sys_id:
+    type: string
+    description: "SYS ID of the incident to add comments to in ServiceNow"
+    required: true
+  notes:
+    type: string
+    description: "Work/close notes to add to the given incident in ServiceNow"
+    required: false
+  work_in_progress:
+    type: boolean
+    description: "Whether or not to mark the incident as a work in progress"
+    required: true
+    default: false

@@ -1,0 +1,65 @@
+---
+name: tsm_backup_internal
+pack: ntt_monitoring
+description: "TSM Bakup failure automation"
+runner_type: orquesta
+entry_point: workflows/tsm_backup_internal.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group of the incident"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: false
+  ci_address:
+    type: string
+    description: "Device ip from the incident description"
+    required: false
+  windows_jump_ip:
+    type: string
+    description: "windows jump server ip"
+    required: true
+  incident_state:
+    type: string
+    description: "incident state"
+    required: true
+  configuration_item_name:
+    type: string
+    description: "configuration item name"
+    required: false
+  affected_drive:
+    type: string
+    description: "affected drive"
+    required: false
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false 
+  short_desc:
+    type: string
+    description: "Short description from the incident"
+    required: false 
+  detailed_desc:
+    type: string
+    description: "detailed description from the incident"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "Short description string to check for recurring incidents"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string to check for recurring incidents"
+    required: false

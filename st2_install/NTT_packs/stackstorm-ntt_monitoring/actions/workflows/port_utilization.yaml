@@ -1,0 +1,759 @@
+---
+version: 1.0
+description: "Monitors port utilization on a network device and compares utilization against a threshold value for further action"
+#platform: Network
+#Datastore keys : nw_port_utilization_rec_days,snmp_version,snmp_string, network.username, network.password
+#Datastore keys for entuity approach: nw_port_utilization_rec_days,snmp_version,snmp_string, network.username, network.password, entuity_pass, entuity_user, nmspollptc05(key in entuity server name), snmp_security_name, snmp_auth_protocol, snmp_auth_key , snmp_priv_protocol_list, snmp_priv_key 
+# Required only for snmp v3: snmp_security_name, snmp_auth_protocol, snmp_auth_key , snmp_priv_protocol_list, snmp_priv_key 
+
+input:
+  - assignment_group
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - interface_descr
+  - max_failures
+  - nms_ip
+  - recheck_limit
+  - sleep_interval
+  - snmp_auth_key
+  - snmp_community
+  - snmp_ip
+  - snmp_oid
+  - snmp_password
+  - snmp_port
+  - snmp_privacy
+  - snmp_priv_key
+  - snmp_protocol
+  - snmp_security
+  - snmp_username
+  - snmp_version
+  - ssh_device_password
+  - ssh_device_username
+  - utilization_threshold
+  - rec_short_desc
+  - rec_detailed_desc
+  - short_desc
+  - configuration_item_name
+  - is_entuity
+
+vars:
+  - check_value: true
+  # Number of times the Port Utilization is consecutively under the threshold
+  - consecutive_fails: 0
+  - device_vendor: ""
+  - error_message: []
+  - packets_received: 0
+  - recheck_total: 0
+  - recheck_total_ping: 0
+  - reliability: null
+  - run_error: false
+  - run_error_ping: false
+  - run_error_utilization: false
+  - run_error_vendor: false
+  - rxload: 0
+  - start_timestamp: ""
+  - threshold_passed: true
+  - top_talkers: ""
+  - txload: 0
+  - values: []
+  - interface_output: ""
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_device_vendor: "false"
+  - device_description: ""
+  - model_id: ""
+  - nms_host: "system.{{ ctx().nms_ip }}"
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - ping_output: "{{ ctx().packets_received }}"
+  - top_talkers: "{{ ctx().top_talkers }}"
+  - device_description: "{{ ctx().device_description }}"
+  - model_id: "{{ ctx().model_id }}"
+
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        threshold_port_high: "{{ ctx().utilization_threshold }}"
+    next:
+      - when: "{{ succeeded() and 'false' in ctx().is_entuity }}"
+        publish:
+          - utilization_threshold_config: "{{ result().result.threshold_port_high if 'threshold_port_high' in result().result else '' }}"
+          - nw_unreachable_to_ping_ping_count: "{{ result().result.nw_unreachable_to_ping_ping_count }}"
+          - nw_unreachable_to_ping_ping_recheck_limit: "{{ result().result.nw_unreachable_to_ping_ping_recheck_limit }}"
+          - nw_unreachable_to_ping_ping_sleep_interval: "{{ result().result.nw_unreachable_to_ping_ping_sleep_interval }}"
+          - nw_unreachable_to_ping_ping_success_packets_received: "{{ result().result.nw_unreachable_to_ping_ping_success_packets_received }}"
+          - nw_unreachable_to_ping_ping_packets_loss_threshold_per: "{{ result().result.nw_unreachable_to_ping_ping_packets_loss_threshold_per }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and 'true' in ctx().is_entuity }}"
+        publish:
+          - utilization_threshold_config: "{{ result().result.threshold_port_high if 'threshold_port_high' in result().result else '' }}"
+          - nw_unreachable_to_ping_ping_count: "{{ result().result.nw_unreachable_to_ping_ping_count }}"
+          - nw_unreachable_to_ping_ping_recheck_limit: "{{ result().result.nw_unreachable_to_ping_ping_recheck_limit }}"
+          - nw_unreachable_to_ping_ping_sleep_interval: "{{ result().result.nw_unreachable_to_ping_ping_sleep_interval }}"
+          - nw_unreachable_to_ping_ping_success_packets_received: "{{ result().result.nw_unreachable_to_ping_ping_success_packets_received }}"
+          - nw_unreachable_to_ping_ping_packets_loss_threshold_per: "{{ result().result.nw_unreachable_to_ping_ping_packets_loss_threshold_per }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - entuity_ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().snmp_ip }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      ping_count: 10
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - uptime_value: "{{ result().output.uptime_value }}"
+          - ping_output: "{{ result().output.ping_result }}"
+          - split_line: "{{ ctx().ping_output.splitlines()[13] }}"
+          - packets_received: "{{ ctx().split_line.split(' ')[3] }}"
+        do:
+          - ping_response_dispatch
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+          - notes: |
+              Automation found the device {{ ctx().snmp_ip }} is not reachable. Automation will try to ping again after wait time.
+              
+              {{ ctx().error_message }}
+        do:
+          - itsm_update_notes
+          - threshold_check_ping
+
+  entuity_ping_test:
+    action: core.remote
+    input:
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      cmd: "/bin/ping -c 10 -I {{ st2kv(ctx().nms_host).split(',')[1] }} {{ ctx().snmp_ip }}"  #st2kv(ctx().nms_host).split(',')[1] = Entuity interface ip
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('entuity_ping_test').end_timestamp }}"
+          - ping_output: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+          - packets_received: "{{ (result()[st2kv(ctx().nms_host).split(',')[0]].stdout.split(',')[1]).split('received')[0] | int }}"
+          - worknote: |
+              The device {{ ctx().snmp_ip }} is reachable. Checking ping success packets.
+
+          - run_error: false
+        do:
+          - ping_response_dispatch
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - notes: |
+              Automation found the device {{ ctx().snmp_ip }} is not reachable. Automation will try to ping again after wait time.
+              
+              {{ ctx().error_message }}
+        do:
+          - itsm_update_notes
+          - threshold_check_ping
+
+  threshold_check_ping:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: false
+      rerun_limit: "{{ ctx().nw_unreachable_to_ping_ping_recheck_limit | int  }}"
+      rerun_total: "{{ ctx().recheck_total_ping | int }}"
+      sleep_interval: "{{ ctx().nw_unreachable_to_ping_ping_sleep_interval | int }}"
+      timeout: "{{ ctx().nw_unreachable_to_ping_ping_sleep_interval | int + 30 }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action and 'true' in ctx().is_entuity }}"
+        publish:
+          - recheck_total_ping: "{{ ctx().recheck_total_ping + 1 }}"
+        do:
+          - entuity_ping_test
+      - when: "{{ succeeded() and result().result.rerun_action and 'false' in ctx().is_entuity }}"
+        publish:
+          - recheck_total_ping: "{{ ctx().recheck_total_ping + 1 }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - notes: "Device {{ ctx().snmp_ip }} could not be reachable by ping. Automation is escalating the incident"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - notes: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_escalate
+
+  itsm_update_notes:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().notes }}"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  ping_response_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ ctx().packets_received | int >= 6 }}"
+        do:
+          - check_recurrence
+      - when: "{{ ctx().packets_received | int < 6 }}"
+        publish:
+          - error_message: "Packet Loss: only {{ ctx().packets_received }} out of 10 were received"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - itsm_cleanup
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "nw_port_utilization_rec_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_escalate
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - decide_entuity
+      - when: "{{ failed() }}"
+        do:
+          - itsm_cleanup 
+          
+  rec_itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+              Automation escalating the ticket due to recurring incidents,
+              
+              {{ ctx().found_recurrence_value }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - run_error: true
+          - error_message: "Automation escalating the ticket due to recurring incidents"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - run_error: true
+          - error_message: "Automation escalating the ticket due to recurring incidents"
+        do:
+          - insert_db 
+
+  decide_entuity:
+    action: core.noop
+    next:
+      - when: "{{ ctx().is_entuity == 'true' }}"
+        publish:
+          - entuity_ip: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+          - interface_ip: "{{ st2kv(ctx().nms_host).split(',')[1] }}"
+          - entuity_user: "{{ st2kv('system.network.username') }}"
+          - entuity_pass: <% st2kv('system.entuity_pass', decrypt => true) %>
+        do:
+          - get_snmp_command
+      - when: "{{ ctx().is_entuity == 'false' }}"
+        publish:
+          - entuity_ip: ''
+          - interface_ip: ''
+          - entuity_user: '' 
+          - entuity_pass: ''
+        do:
+          - identify_vendor
+
+  get_snmp_command:
+    action: core.noop
+    next:
+      - when: "{{ ctx().snmp_version == 'v2' }}"
+        publish:
+          - snmp_command: "/opt/entuity/lib/tools/snmpget --clientaddr={{ctx().interface_ip}}:161 -v2c -c {{ ctx().snmp_community }} {{ ctx().snmp_ip }} .1.3.6.1.2.1.1.1.0"
+        do:
+          - entuity_identify_vendor      
+      - when: "{{ ctx().snmp_version == 'v3' }}"
+        publish:
+          - snmpstring: "{{ st2kv('system.snmp_string') }}"
+          - securityName: "{{ st2kv('system.snmp_security_name') }}"
+          - authProtocol: "{{ st2kv('system.snmp_auth_protocol') }}"
+          - authKey: "{{ st2kv('system.snmp_auth_key') }}"
+          - privProtocolList: "{{ st2kv('system.snmp_priv_protocol_list') }}"
+          - privKey: "{{ st2kv('system.snmp_priv_key') }}"           
+        do: 
+          - get_private_protocol        
+
+  get_private_protocol:
+    action: core.remote
+    input:
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      cmd: "privProtocolList={{ ctx().privProtocolList }} ; IFS=',' ; read -ra ADDR <<< \"$privProtocolList\" ; for i in \"${ADDR[@]}\"; do output=$(/opt/entuity/lib/tools/snmpwalk --clientaddr={{ ctx().interface_ip }}:161 -v3 -u \"{{ ctx().securityName }}\" -a \"{{ ctx().authProtocol }}\" -A \"{{ ctx().authKey }}\" -l authPriv -x $i -X \"{{ ctx().privKey }}\" {{ ctx().snmp_ip }} .1.3.6.1.2.1.1.1); if [[ \"$output\" != *\"snmpwalk: Decryption error\"* || \"$output\" != *\"Timeout\"* || \"$output\" != *\"timeout\"* || \"$output\" != *\"snmpwalk: Timeout\"* ]]; then echo \"$i\"; break; fi; done"
+    next:
+      - when: "{{ succeeded() and result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' }}"
+        publish:
+          - privProtocol: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout | trim }}"
+          - snmp_command: "/opt/entuity/lib/tools/snmpget --clientaddr={{ctx().interface_ip}}:161 -v3 -u {{ ctx().securityName }} -a {{ ctx().authProtocol }} -A {{ ctx().authKey }} -l authPriv -x {{ ctx().privProtocol }} -X {{ ctx().privKey }} {{ ctx().snmp_ip }} .1.3.6.1.2.1.1.1.0 sysDescr.0"
+        do:
+          - entuity_identify_vendor
+      - when: "{{ succeeded() and result()[st2kv(ctx().nms_host).split(',')[0]].stdout == '' }}"
+        publish:
+          - privProtocol: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+          - notes: "Automation not able to find the private protocol of the device to identify device vendor. Escalating the incident."
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - privProtocol: ""
+          - notes: "Automation not able to find the private protocol of the device to identify device vendor. Escalating the incident."
+        do:
+          - itsm_escalate
+
+  entuity_identify_vendor:
+    action: core.remote
+    input:
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      cmd: "{{ ctx().snmp_command }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish: 
+          - device_vendor: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+        do:
+          - check_port_utilization
+      - when: "{{ failed() }}"
+        publish:
+          - notes: "Automation not able to identify device vendor. Escalating the incident."
+        do:
+          - itsm_escalate
+  
+  identify_vendor:
+    action: ntt_monitoring.snmp_get_vendor
+    input:
+      nms_ip: "{{ ctx().nms_ip }}"
+      snmp_auth_key: "{{ ctx().snmp_auth_key }}"
+      snmp_community: "{{ ctx().snmp_community }}"
+      snmp_ip: "{{ ctx().snmp_ip }}"
+      snmp_oid: "{{ ctx().snmp_oid }}"
+      snmp_password: "{{ ctx().snmp_password }}"
+      snmp_port: "{{ ctx().snmp_port }}"
+      snmp_privacy: "{{ ctx().snmp_privacy }}"
+      snmp_priv_key: "{{ ctx().snmp_priv_key }}"
+      snmp_protocol: "{{ ctx().snmp_protocol }}"
+      snmp_security: "{{ ctx().snmp_security }}"
+      snmp_username: "{{ ctx().snmp_username }}"
+      snmp_version: "{{ ctx().snmp_version }}"
+    next:
+      - when: "{{ succeeded() and result().result != '' }}"
+        publish:
+          - device_vendor: "{{ result().result }}"
+        do:
+          - check_port_utilization
+      - when: "{{ succeeded() and result().result == '' }}"
+        publish:
+          - vendor_error: "{{ result().stdout }}"
+        do:
+          - get_ci_vendor
+      - when: "{{ failed() }}"
+        publish:
+          - vendor_error: "{{ result().stdout }}"
+        do:
+          - get_ci_vendor
+
+
+  get_ci_vendor:
+    action: ntt_itsm.itsm_table_getentries
+    input:
+      schema_name: "cmdb_ci_netgear"
+      match_condition: "name={{ ctx().configuration_item_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - model_id: "{{ result().result[0].model_id.value }}"
+        do:
+          - get_model
+      - when: "{{ failed() }}"
+        publish:
+          - notes: |
+                 Automation not able to find the device type from snmpget/CMDB. Escalating the ticket,
+                 {{ ctx().vendor_error }}
+          - run_error: true
+          - run_error_vendor: true
+        do:
+          - itsm_escalate
+
+  get_model:
+    action: ntt_itsm.itsm_table_getentries
+    input:
+      schema_name: "cmdb_model"
+      match_condition: "sys_id={{ ctx().model_id }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - device_description: "{{ result().result[0].short_description }}"
+        do:
+          - get_vendor
+      - when: "{{ failed() }}"
+        publish:
+          - notes: |
+                 Automation not able to find the device type from snmpget/CMDB. Escalating the ticket,
+                 {{ ctx().vendor_error }}
+          - run_error: true
+          - run_error_vendor: true
+        do:
+          - itsm_escalate
+
+  get_vendor:
+    action: core.noop
+    next:
+      - when: "{{ 'cisco' in ctx().device_description or 'Cisco' in ctx().device_description or 'CISCO' in ctx().device_description  }}"
+        publish:
+          - found_device_vendor: "true"
+          - device_vendor: "Cisco"
+        do:
+          - check_port_utilization
+      - when: "{{ 'Dell' in ctx().device_description or 'dell' in ctx().device_description or 'DELL' in ctx().device_description or '4032' in ctx().device_description }}"
+        publish:
+          - found_device_vendor: "true"
+          - device_vendor: "Dell"
+        do:
+          - check_port_utilization
+      - when: "{{ 'cisco' not in ctx().device_description | lower and 'dell' not in ctx().device_description | lower}}"
+        publish:
+          - notes: |
+                 Automation not able to find the device type from snmpget/CMDB. Escalating the ticket,
+                 {{ ctx().vendor_error }}
+          - run_error: true
+          - run_error_vendor: true
+        do:
+          - itsm_escalate
+          
+          
+  check_port_utilization:
+    action: ntt_monitoring.ssh_get_port_utilization
+    input:
+      ci_address: "{{ ctx().snmp_ip }}"
+      device_vendor: "{{ ctx().device_vendor }}"
+      interface: "{{ ctx().interface_descr }}"
+      ssh_password: "{{ ctx().ssh_device_password }}"
+      ssh_username: "{{ ctx().ssh_device_username }}"
+      is_entuity: "{{ ctx().is_entuity }}"
+      entuity_ip: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      interface_ip: "{{ st2kv(ctx().nms_host).split(',')[1] }}" 
+      entuity_user: "{{ st2kv('system.network.username') }}"
+      entuity_pass: <% st2kv('system.entuity_pass', decrypt => true) %>
+    next:
+      - when: "{{ succeeded() and 'Error:' not in result().stdout and 'Error:' not in result().stderr  }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+          - reliability: "{{ result().result.reliability }}"
+          - rxload: "{{ result().result.rxload }}"
+          - top_talkers: "{{ result().result.top_talkers if ctx().device_vendor == 'Cisco' else 'NA' }}"
+          - txload: "{{ result().result.txload }}"
+          - interface_output: "{{ result().stdout }}"
+        do:
+          - itsm_update_results
+      - when: "{{ succeeded() and ('Error:' in result().stdout or 'Error:' in result().stderr) and ctx().recheck_total < ( ctx().recheck_limit - 1 ) and 'Error: Couldn' not in result().stdout }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - check_port_utilization
+      - when: "{{ failed() or (succeeded() and ('Error:' in result().stdout or 'Error:' in result().stderr) and ctx().recheck_total == ( ctx().recheck_limit - 1 )) or (succeeded() and 'Error: Couldn' in result().stdout) }}"
+        publish:
+          - notes: |
+                   Automation escalating the ticket due to below error,
+                   {{ result().stdout }}
+                   {{ result().stderr }}
+          - run_error: true
+          - run_error_utilization: true
+        do:
+          - itsm_escalate
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Show interface command output:
+             {{ ctx().interface_output }}
+             
+             Show top talkers command output:
+             {{ ctx().top_talkers }}
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_values
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update port utilization details in ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - itsm_cleanup
+
+  check_values:
+    action: ntt_monitoring.check_port_utilization_values
+    input:
+      fail_check_counter: "{{ ctx().consecutive_fails }}"
+      threshold: "{{ ctx().utilization_threshold }}"
+      txload: "{{ ctx().txload }}"
+      rxload: "{{ ctx().rxload }}"
+      reliability: "{{ ctx().reliability }}"
+      vendor: "{{ ctx().device_vendor }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - threshold_passed: true
+          - consecutive_fails: 0
+        do:
+          - threshold_check
+      - when: "{{ failed() }}"
+        publish:
+          - consecutive_fails: "{{ ctx().consecutive_fails + 1 }}"
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - threshold_passed: false
+        do:
+          - threshold_check
+
+  threshold_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: false
+      rerun_limit: "{{ ctx().recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      fail_check_counter: "{{ ctx().consecutive_fails }}"
+      sleep_interval: "{{ ctx().sleep_interval }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        do:
+          - check_port_utilization
+      - when: "{{ succeeded() and not result().result.rerun_action and ctx().threshold_passed and not ctx().found_recurrence }}"
+        publish:
+          - notes: |
+                   Automation completed. 
+                   
+                   RxLoad is at {{ ctx().rxload }}% TxLoad is at {{ ctx().txload }}% and Reliability is at {{ ctx().reliability }}% and is under the threshold {{ ctx().utilization_threshold }}%
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and not result().result.rerun_action and ctx().threshold_passed and ctx().found_recurrence }}"
+        publish:
+          - notes: |
+                   Automation completed, but escalating due recurring incidents. 
+                   
+                   RxLoad is at {{ ctx().rxload }}% TxLoad is at {{ ctx().txload }}% and Reliability is at {{ ctx().reliability }}% and is under the threshold {{ ctx().utilization_threshold }}%
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and not result().result.rerun_action and not ctx().threshold_passed and not ctx().found_recurrence}}"
+        publish:
+          - notes: |
+                   Automation is escalating as the port utilization is above threshold,
+                   
+                   RxLoad is at {{ ctx().rxload }}% TxLoad is at {{ ctx().txload }}% and Reliability is at {{ ctx().reliability }}% and is above the threshold {{ ctx().utilization_threshold }}%
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and not result().result.rerun_action and not ctx().threshold_passed and ctx().found_recurrence}}"
+        publish:
+          - notes: |
+                   Automation is escalating as the port utilization is above threshold and recurring incidents found,
+                   
+                   RxLoad is at {{ ctx().rxload }}% TxLoad is at {{ ctx().txload }}% and Reliability is at {{ ctx().reliability }}% and is above the threshold {{ ctx().utilization_threshold }}%
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error checking the threshold for ITSM incident {{ ctx().inc_sys_id }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident!"
+        do:
+          - itsm_cleanup
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident!"
+        do:
+          - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_sys_id }}!"
+        do:
+          - noop
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ completed() }}"
+        do:
+          - get_end_timestamp
+
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and ctx().run_error_vendor }}"
+        publish:
+          - end_timestamp: "{{ task('identify_vendor').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and ctx().run_error_utilization }}"
+        publish:
+          - end_timestamp: "{{ task('check_port_utilization').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        publish:
+          - end_timestamp: "{{ task('check_port_utilization').end_timestamp }}"
+        do:
+          - insert_db
+
+  #TODO ADD MORE PARAMS AFTER ITSM INTEGRATION IS COMPLETE
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "port_utilization"
+        Entity_ID: <% ctx(st2).action_execution_id %>
+        Status: "{{ 'Failure' if ( ctx().run_error or not ctx().threshold_passed ) else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if not ctx().run_error and ctx().threshold_passed %}
+          RxLoad is at {{ ctx().rxload }}% TxLoad is at {{ ctx().txload }} and Reliability is at {{ ctx().reliability }} and is under the threshold {{ ctx().utilization_threshold }}%
+          {% endif %}
+          {% if not ctx().threshold_passed %}
+          {{ ctx().error_message }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {% endif %}
+        AM_Status: "{{ 'Failure' if ( ctx().run_error or not ctx().threshold_passed ) else 'Success' }}"
+        Configuration_Item: "{{ ctx().snmp_ip }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "port_utilization"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "{{ ctx().device_vendor }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().snmp_ip }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail

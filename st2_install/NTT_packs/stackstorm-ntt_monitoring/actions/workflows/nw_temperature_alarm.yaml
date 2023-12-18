@@ -1,0 +1,441 @@
+---
+version: 1.0
+
+description: Network Device Reachability Degraded
+#Platform: Network
+#Datastore KEys: Nw_temperature_Rec_logic_days,resource_status_recheck_value
+
+input:
+  - assignment_group
+  - module_name
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - incident_state
+  - nms_server
+  - rec_detailed_desc
+  - rec_short_desc
+  - configuration_item_name
+  - target_ip
+
+vars:
+
+  - error_message: ""
+  - update_kv_result: ""
+  - work_info_notes: ""
+  - run_error: false
+  - am_status: ""
+  - end_timestamp: ""   
+  - start_timestamp: ""
+  - login_status: ""  
+  - cisco_device: ""  
+  - script_output: ""
+  - temperature_output: ""  
+  - recheck_limit: 5
+  - update_recheck_count: ""
+  - recheck_count: ""  
+  - run_error: ""  
+  - temperature_status: ""  
+  - nms_host: "system.{{ ctx().nms_server }}"
+  
+output:
+
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message }}"
+  - update_kv_result: "{{ ctx().update_kv_result }}"
+  - target_ip: "{{ ctx().target_ip }}"
+  - login_status: "{{ ctx().login_status }}"  
+  - cisco_device: "{{ ctx().cisco_device }}"  
+  - temperature_output: "{{ ctx().temperature_output }}"  
+  
+tasks:
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() }}"   
+        publish: 
+          - start_timestamp: "{{ task('incident_move_inprogress').start_timestamp }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Nw_temperature_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_escalate
+      - when: "{{ succeeded() and not result().result.Found_Recurrence and ctx().incident_state == '2' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:      
+          - rec_itsm_update_results 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence and ctx().incident_state != '2' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:      
+          - check_connectivity           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup           
+     
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true    
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:          
+          - check_connectivity
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true        
+        do:
+          - itsm_cleanup 
+
+  rec_itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation found recurrence. Escalating the ticket. \n {{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:        
+          - insert_db         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - insert_db
+
+  check_connectivity:
+    action: ntt_monitoring.check_connectivity_entuity
+    input:
+      device_ip: "{{ ctx().target_ip }}"
+      entuity_ip: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      entuity_interface_ip: "{{ st2kv(ctx().nms_host).split(',')[1] }}"
+    next:
+      - when: "{{ succeeded() and 'succesfully' in result().stdout }}"
+        publish:
+          - login_status: "Connect to the remote device successfully: {{ ctx().target_ip }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - cisco_device_status
+      - when: "{{ succeeded() and 'Unable' in result().stdout }}"
+        publish:
+          - error_message: "Automation is escalating the ticket. Unable to connect to remote device: {{ ctx().target_ip }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_cleanup
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Automation is escalating the ticket. Unable to connect to remote device: {{ ctx().target_ip }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_cleanup  
+
+  cisco_device_status:
+    action: ntt_monitoring.check_connectivity_entuity
+    input:
+      device_ip: "{{ ctx().target_ip }}"
+      entuity_ip: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      entuity_interface_ip: "{{ st2kv(ctx().nms_host).split(',')[1] }}"
+    next:
+      - when: "{{ succeeded() and 'Cisco' in result().stdout }}"
+        publish:
+          - cisco_device: "{{ ctx().target_ip}} is a cisco device."
+        do:
+          - get_recheck_value
+      - when: "{{ succeeded() and 'Cisco' not in result().stdout }}"
+        publish:
+          - error_message: "Automation is escalating the ticket. {{ ctx().target_ip}} is not a cisco device."
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_cleanup
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Automation is escalating the ticket. Unable to get data from action file."
+        do:
+          - itsm_cleanup
+
+  get_recheck_value:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "nw_temperature_recheck"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - recheck_count: "{{ result().result | int }}"
+        do:
+          - check_temperature_status
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error fetching value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  check_temperature_status:
+    action: ntt_monitoring.check_temperature_status
+    input:
+      device_ip: "{{ ctx().target_ip }}"
+      entuity_ip: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      entuity_interface_ip: "{{ st2kv(ctx().nms_host).split(',')[1] }}"
+    next:
+      - when:  "{{ succeeded() and ('Success' in result().stdout or 'lesser' in result().stdout) and ctx().recheck_count < ctx().recheck_limit | int }}"
+        publish:
+          - script_output: "{{ result().stdout }}"
+          - update_recheck_count: "{{ ctx().recheck_count + '1' | int }}"
+          - temperature_output: "Temperature of the device is Normal"
+        do:
+          - temperature_status_update	
+          - incident_move_topending
+      - when:  "{{ succeeded() and ('Success' in result().stdout or 'lesser' in result().stdout) and ctx().recheck_count == ctx().recheck_limit | int }}"
+        publish:
+          - script_output: "{{ result().stdout }}"
+          - temperature_output: "Temperature of the device is Normal"
+        do:
+          - itsm_close		  
+      - when:  "{{ succeeded() and ('greater' in result().stdout or 'Fail' in result().stdout) and ctx().recheck_count < ctx().recheck_limit | int }}"
+        publish:
+          - script_output: "{{ result().stdout }}"
+          - update_recheck_count: "{{ ctx().recheck_count + '1' | int }}"
+          - temperature_output: "Temperature of the device is not Normal"
+        do:
+          - temperature_status_update
+          - incident_move_topending
+      - when:  "{{ succeeded() and ('greater' in result().stdout or 'Fail' in result().stdout) and ctx().recheck_count == ctx().recheck_limit | int }}"
+        publish:
+          - script_output: "{{ result().stdout }}"
+          - temperature_output: "Temperature of the device is not Normal"
+        do:
+          - itsm_escalate
+      - when:  "{{ succeeded() and ('not matching' in result().stdout or 'not able to find' in result().stdout or 'Invalid' in result().stdout) }}"
+        publish:
+          - script_output: "{{ result().stdout }}"
+          - error_message: "Automation is escalating the ticket. Unable to find model or temperature command or getting an invalid output. \n {{ ctx().script_output }}"
+        do:
+          -  itsm_cleanup
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Automation is escalating the ticket. Unable to fetch Temperature Status details from check_temperature_status task. \n {{ ctx().script_output }}"
+        do:
+          - itsm_cleanup
+
+  incident_move_topending:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      pending: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      pending_mins: 10
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_recheck_value
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  update_recheck_value:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "nw_temperature_recheck"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding value to datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  update_kv_var_pending:
+    action: ntt_itsm.itsm_processing_pending_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail
+
+  temperature_status_update:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().temperature_output }}.\nNext temperature update in 10 minutes(Total monitoring time: 50 minutes), till then automation is suspending this incident.:\n\n Please find below the current temperature status:\n{{ ctx().script_output }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident.\n {{ ctx().temperature_output }} \n\n Current Temperature Status:\n {{ ctx().script_output }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+        do:
+           - itsm_cleanup            
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it. Automation monitored this incident for 50 minutes, and found that temperature is high.\n Current Temperature Status::\n{{ ctx().script_output }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_sys_id }}!"
+        do:
+          - noop
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail     
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "Network Device Temperature Alarm"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().target_ip }}"
+        ITSM_Name: "servicenow"
+        Job_Id: <% ctx(st2).action_execution_id %>
+        Module_Name: "Network Device Temperature Alarm"
+        Ref_No: "{{ ctx().inc_number }}"
+        # Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc | replace(':', ': ') }}"
+        Detail_Desc: "{{ ctx().detailed_desc | replace(':', ': ') }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().target_ip }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail	              
+

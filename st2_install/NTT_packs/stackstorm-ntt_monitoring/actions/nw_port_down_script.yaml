@@ -1,0 +1,73 @@
+---
+name: nw_port_down_script
+pack: ntt_monitoring
+description: Port down check 
+runner_type: local-shell-script
+entry_point: nw_port_down_script.sh
+enabled: true
+parameters:
+  device:
+    type: string
+    description: "Device ip"
+    required: false
+    position: 1
+  Ifindex:
+    type: string
+    description: "if index from ticket"
+    required: false
+    position: 2
+  mib:
+    type: string
+    description: "mib from ticket"
+    required: false
+    position: 3
+  logfile:
+    type: string
+    description: "incident number"
+    required: false
+    position: 4
+  snmpstring:
+    type: string
+    description: "snmp string"
+    required: false
+    position: 5
+  WorkflowType:
+    type: string
+    description: "port link down or port operationally down"
+    required: false
+    position: 6
+  snmpver:
+    type: string
+    description: "enable debug"
+    required: false
+    position: 7
+  securityName:
+    type: string
+    description: "snmp v3 security name"
+    required: false
+    position: 8
+  authProtocol:
+    type: string
+    description: "snmp v3 auth protocol"
+    required: false
+    position: 9
+  authKey:
+    type: string
+    description: "snmp v3 auth key"
+    required: false
+    position: 10
+  privProtocol:
+    type: string
+    description: "snmp v3 private protocol"
+    required: false
+    position: 11
+  privKey:
+    type: string
+    description: "snmp v3 private key"
+    required: false
+    position: 12
+  timeout:
+    type: integer
+    description: "timeout"
+    required: false
+    default: 2000

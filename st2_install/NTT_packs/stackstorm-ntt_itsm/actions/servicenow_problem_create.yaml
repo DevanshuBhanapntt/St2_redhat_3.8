@@ -1,0 +1,45 @@
+---
+
+description: "Create ServiceNow problem"
+enabled: true
+runner_type: "python-script"
+entry_point: servicenow_problem_create.py
+name: servicenow_problem_create
+pack: ntt_itsm
+parameters:
+  assignment_group:
+    type: string
+    description: "Query to get"
+    required: true
+  company:
+    type: string
+    description: "Query to get"
+    required: true
+  description:
+    type: string
+    description: "Query to get"
+    required: true
+  short_description:
+    type: string
+    description: "Query to get"
+    required: true
+  u_problem_management_group:
+    type: string
+    description: "Query to get"
+    required: true
+  u_initiation_reason:
+    type: string
+    description: "Query to get"
+    required: true
+  cmdb_ci:
+    type: string
+    description: "Query to get"
+    required: true
+  u_problem_manager:
+    type: string
+    description: "Query to get"
+    required: true
+  u_problem_owner:
+    type: string
+    description: "Query to get"
+    required: true

@@ -1,0 +1,63 @@
+---
+name: network_high_cpu_script
+pack: ntt_monitoring
+description: High CPU check for the network device 
+runner_type: local-shell-script
+entry_point: network_high_cpu_script.sh
+enabled: true
+parameters:
+  device:
+    type: string
+    description: "Device ip"
+    required: false
+    position: 1
+  clogin_script_path:
+    type: string
+    description: "clogin script path"
+    required: false
+    position: 2
+  logfile:
+    type: string
+    description: "Incident number"
+    required: false
+    position: 3
+  device_username:
+    type: string
+    description: "network device username"
+    required: false
+    position: 4
+  device_password:
+    type: string
+    description: "network device password"
+    required: false
+    position: 5
+  cpu_threshold:
+    type: integer
+    description: "high cpu threshold"
+    required: false
+    position: 6
+  current_loop_count:
+    type: integer
+    description: "current loop"
+    required: false
+    position: 7
+  max_loop:
+    type: integer
+    description: "maximum loop"
+    required: false
+    position: 8
+  consecutive_fails:
+    type: integer
+    description: "current fail loop"
+    required: false
+    position: 9
+  max_failures:
+    type: integer
+    description: "maximum fail loop"
+    required: false
+    position: 10
+  timeout:
+    type: integer
+    description: "timeout"
+    required: false
+    default: 800

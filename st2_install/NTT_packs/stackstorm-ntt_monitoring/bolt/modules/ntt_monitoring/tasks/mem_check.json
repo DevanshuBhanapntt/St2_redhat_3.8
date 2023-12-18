@@ -1,0 +1,50 @@
+{
+  "description": "Runs a script on a remote server to retrieve memory utilization",
+  "implementations": [
+    {
+      "name": "mem_check.sh"
+    }
+  ],
+  "parameters": {
+    "status": {
+      "description": "Status",
+      "type": "String"
+    },
+    "threshold": {
+      "description": "Maximum allowable percentage of memory usage",
+      "type": "Integer"
+    },
+    "unix_username": {
+      "description": "Unix/Linux remote server username",
+      "type": "String"
+    },
+    "unix_password": {
+      "description": "Unix/Linux remote server password",
+      "type": "String"
+    },
+    "solaris_username": {
+      "description": "SunOS remote server username",
+      "type": "String"
+    },
+    "solaris_password": {
+      "description": "SunOS remote server password",
+      "type": "String"
+    },
+    "aix_username": {
+      "description": "AIX OS remote server username",
+      "type": "String"
+    },
+    "aix_password": {
+      "description": "AIX OS remote server password",
+      "type": "String"
+    },
+    "hostname": {
+      "description": "remote server",
+      "type": "String"
+    },
+	"os_name": {
+      "description": "os name of remote server",
+      "type": "String"
+    }
+  }
+}

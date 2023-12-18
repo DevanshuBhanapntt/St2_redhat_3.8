@@ -1,0 +1,7 @@
+---
+description: "Retrieve all variables from the config file"
+enabled: true
+runner_type: "python-script"
+entry_point: config_vars_get.py
+name: config_vars_get
+pack: ntt_itsm

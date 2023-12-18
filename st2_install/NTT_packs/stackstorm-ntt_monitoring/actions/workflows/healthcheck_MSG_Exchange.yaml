@@ -1,0 +1,303 @@
+---
+# Please refer the task report_traverse which is using the action ntt_monitoring.healthcheck_traverse_exchange_report
+# If your account does not require any of the feature from DB Whitespace check , Incremental backup days check , comment the implementaion in the action
+# Instruction for the same has been updated in action please check.
+version: 1.0
+
+description: Verify the whitespace and backup threshold for exchange servers
+
+input:
+
+  - filepath
+  - filematchstring
+  - os_type
+  - dns_domain
+  - configuration_item_name
+  - customer_abbr
+  - winrm_password_key
+  - winrm_username_key
+  - winrm_ssl_key
+  - winrm_verify_ssl_key
+  - winrm_port_key
+
+
+vars:
+
+  - error_message: ""
+  - run_error_config: false
+  - exchange_server_report: ""
+  - report_file_check: false
+  - run: ""
+  - error_output: ""
+  - run_error: false
+  - HC_result: ""
+  - cmdb_ci: ""
+  - config_item_dict: ""
+  - worklog: ""
+  - position: 0
+  - inc_created_msg: ""
+  - loop_over: false
+
+output:
+
+  - error_message: "{{ ctx().error_message }}"
+  - config_item_dict: "{{ctx().config_item_dict}}"
+  - worklog: "{{ctx().worklog}}"
+  - run_error: "{{ctx().run_error}}"
+  - HC_result: "{{ctx().HC_result}}"
+  - inc_created_msg: "{{ctx().inc_created_msg}}"
+
+
+tasks:
+
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - winrm_username: "{{ result().result.connections.winrm_username if 'connections' in result().result and 'winrm_username' in result().result.connections else '' }}"
+          - winrm_password: "{{ result().result.connections.winrm_password if 'connections' in result().result and 'winrm_password' in result().result.connections else '' }}"
+
+        do:
+          - report_file
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info" 
+          - run_error_config: true
+
+
+  report_file:   
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().configuration_item_name }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::hc_exchange_report_content"
+      params:
+        filepath: "{{ ctx().filepath}}"
+        filematchstring: "{{ ctx().filematchstring}}"
+        username: "{{ ctx().winrm_username}}"
+        password: "{{ ctx().winrm_password}}"
+      st2kv_config:
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - exchange_server_report: "{{ result().output.run.result.output }}"
+          - report_file_check: true          
+          - run: "{{ result().output.run }}"          
+        do:
+          - validate_bolt_output
+
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result() }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - run_error: true
+          - report_file_check: false
+        do:
+          - fail
+
+  validate_bolt_output:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and 'No file found' not in ctx().exchange_server_report }}"
+        do:
+          - report_traverse
+      - when: "{{ succeeded() and 'No file found' in ctx().exchange_server_report }}"
+        publish:
+          - error_message: "{{ ctx().exchange_server_report }}"
+          - run_error: true
+        do:
+          - fail
+
+
+  report_traverse:
+    action: ntt_monitoring.healthcheck_traverse_exchange_report
+    input:
+      HTML_doc: "{{ ctx().exchange_server_report }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - config_item_dict: "{{ result().result.config_item }}"
+          - ci_list: "{{ result().result.ci_list }}"
+        do:
+          - verify_config_item
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result() }}"
+          - run_error: true
+
+
+  verify_config_item:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ((ctx().ci_list | length) == 0) }}"
+        publish:
+          - worklog: "HealthCheck completed successfully"
+          - HC_result: "P"
+          - cmdb_ci: "{{ ctx().configuration_item_name }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and ((ctx().ci_list | length) > 0) }}"
+        publish:
+          - HC_result: "F"
+        do:
+          - check_for_index
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result() }}"
+          - run_error: true
+
+
+  check_for_index:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().position | int < (ctx().ci_list | length) }}"
+
+        do:
+          - loop_over_ci
+      - when: "{{ succeeded() and ctx().position | int >= (ctx().ci_list | length) }}"
+        publish:
+          - loop_over: true
+        do:
+          - noop
+      
+
+  
+  loop_over_ci:
+    action: ntt_monitoring.get_msg_exchange_ci
+    input:
+      ci_items: "{{ ctx().ci_list }}"
+      ci_item_dict: "{{ ctx().config_item_dict }}"
+      index: "{{ ctx().position | int }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - cmdb_ci: "{{ result().result.cmdb_ci }}"
+          - description: "{{ result().result.ci_description }}"
+          - position: "{{ result().result.new_position }}"
+        do:
+          - look_for_incidents
+
+      - when: "{{ failed() }}"
+        publish:
+          - position: "{{ (ctx().position | int) + 1 }} "
+        do:
+          - check_for_index
+    
+    
+  look_for_incidents:
+    action: ntt_itsm.check_open_pending_incidents
+    input:
+      short_desc: "Automated%20Health%20Check%20for%20Exchange%20found%20issue%20with%20{{ ctx().cmdb_ci }}"
+    next:
+      - when: "{{ succeeded() and result().result.create_inc}}"
+        do:
+        - create_incident
+          
+      - when: "{{ succeeded() and not result().result.create_inc}}"
+        publish:
+          - worklog: "Already an open/pending incident is available for {{ ctx().cmdb_ci }} in ITSM for the message exchange health check."
+          - inc_created_msg: "{{ ctx().inc_created_msg}} {{ ctx().worklog }}"
+        do:
+          - insert_db
+        
+    
+  create_incident:
+    action: ntt_itsm.servicenow_incident_create
+    input:
+      company: "Owens & Minor"
+      requested_by: "BMC Truesight"
+      short_description: "Automated Health Check for Exchange found issue with {{ ctx().cmdb_ci }}"
+      cmdb_ci: "{{ ctx().cmdb_ci }}"
+      category: "Functionality"
+      subcategory: "Does Not Work"
+      assignment_group: "OM-IS Mail"
+      description: "{{ ctx().description }}"
+      impact: "4-Minor/Localised"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - HC_result: "F"
+          - incident_number: "{{ result().result.Number }}"
+          - worklog: "HealthCheck failed for {{ ctx().cmdb_ci }}. Refer Incident {{ ctx().incident_number }}."
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result() }}"
+          - run_error: true
+        do:
+          - check_for_index
+
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert_healthcheck
+    input:
+      HCAuditLog_data:
+        HealthCheckKey: "HC_Msg_ExChg_0000000002"
+        WhatWasPerformed: "Executes powershell script to gather Exchange environment stats"
+        Results: "Incremental backup threshold breached for exchange server"
+        Environment: "Dev"
+      HCMetric_data:
+        HealthCheckKey: "HC_Msg_ExChg_0000000002"
+        Customer: "Owens & Minor"
+        ServiceTower: "Messaging"
+        ConfigurationItem: "{{ ctx().cmdb_ci}}"
+        ConfigurationItemType: "Exchange"
+        HCPerformedBy: "Stackstorm"
+        Result: "{{ ctx().HC_result}}"
+        TrackingTicketSource: "servicenow"
+        Environment: "Dev"
+        Notes: "{{ ctx().worklog }}"
+        AOJobID: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() and ctx().HC_result == 'F' and not ctx().loop_over }}"
+        do:
+          - check_for_index
+      
+      - when: "{{ succeeded() and ctx().HC_result == 'F' and ctx().loop_over }}"
+        do:
+          - noop
+      
+      - when: "{{ succeeded() and ctx().HC_result == 'P' }}"
+        do:
+          - noop
+
+      - when: "{{ failed() and ctx().HC_result == 'P'}}"
+        publish:
+          - error_message: "Failed insert to DB"
+        do:            
+          - fail
+
+      - when: "{{ failed() and ctx().HC_result == 'F' and not ctx().loop_over }}"
+        publish:
+          - run_error: true
+          - error_message: "Failed insert to DB for {{ ctx().cmdb_ci }}"
+        do:
+          - check_for_index
+          
+      - when: "{{ failed() and ctx().HC_result == 'F' and ctx().loop_over }}"
+        publish:
+          - run_error: true
+          - error_message: "Failed insert to DB for {{ ctx().cmdb_ci }}"
+        do:
+          - noop

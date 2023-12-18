@@ -1,0 +1,518 @@
+---
+version: 1.0
+description: Check the port down status
+#platform: Network
+#Datastore Keys: Nw_port_down_Rec_logic_days, network_username_internalservices,  network_password_internalservices, jump_server_internalservices , jump_user_internalservices, jump_pass_internalservices
+
+input:
+  - assignment_group  
+  - customer_abbr
+  - customer_name
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - detailed_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - device_ip
+  - configuration_item_name
+  - jump_server_name
+  - jump_server_user
+  - jump_server_pass
+  - device_name
+  - network_username
+  - network_password
+  - interface
+ 
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""  
+  - run_error: false
+  - am_status: "Failure"
+  - start_timestamp: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - worknote: ""
+  - is_entuity: 'true'
+  - single_quote: "'"
+  - fb1: '{'
+  - fb2: '}'
+  - consecutive_success: 0
+  - recheck_total: 0
+  - total_retry: 4
+  - ping_retry: 2
+  - ping_iteration: 0
+  - automation_interface_server: '155.16.55.9'
+  - automation_interface_user: "{{ st2kv('system.automation_interface_user') }}"
+  - automation_interface_pass: <% st2kv('system.automation_interface_pass', decrypt => true) %>
+  - command_set: 0
+
+output:  
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides: {}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - winrm_port: "{{ result().result.connections.winrm_port if 'connections' in result().result and 'winrm_port' in result().result.connections else '' }}"
+          - winrm_scheme: "{{ result().result.connections.winrm_scheme if 'connections' in result().result and 'winrm_scheme' in result().result.connections else '' }}"
+          - winrm_verify_ssl: "{{ result().result.connections.winrm_verify_ssl if 'connections' in result().result and 'winrm_verify_ssl' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - fail
+          
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress. \n Automation Job ID: <% ctx(st2).action_execution_id %>"      
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence         
+      - when: "{{ failed() }}"
+        do:
+          - fail
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Nw_port_down_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().device_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_escalate
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:      
+          - rec_itsm_update_results           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup           
+     
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true    
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:          
+          - ping_test_automation_server
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true        
+        do:
+          - itsm_cleanup 
+
+  rec_itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation found recurrence. Escalating the ticket. \n {{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:        
+          - insert_db         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - insert_db 
+
+
+  ping_test_automation_server:
+    action: core.local
+    input:
+      cmd: "ping -c 4 {{ ctx().automation_interface_server }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - run_error_cmd_ping: false
+          - ping_iteration: 0
+        do:
+          - ping_test
+      - when: "{{ failed() and ctx().ping_iteration < ctx().ping_retry }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - run_error_cmd_ping: false
+        do:
+          - ping_delay_automation_server
+      - when: "{{ failed() and ctx().ping_iteration >= ctx().ping_retry }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - worknote: |
+                   The automation server {{ ctx().automation_interface_server }} is not reachable. Escalating the task.
+                   
+                   {{ ctx().ping_result }}
+          - run_error_cmd_ping: true
+        do:
+          - itsm_escalate
+
+
+  ping_delay_automation_server:
+    action: core.pause
+    input:
+      max_pause: 300
+    next:
+      - when: "{{ succeeded() or failed() }}"
+        publish:
+          - ping_iteration: "{{ ctx().ping_iteration + 1 }}"
+        do:
+          - ping_test_automation_server
+
+  ping_test:
+    action: core.local
+    input:
+      cmd: "ping -c 4 {{ ctx().jump_server_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - run_error_cmd_ping: false
+        do:
+          - ping_nw_device
+      - when: "{{ failed() and ctx().ping_iteration < ctx().ping_retry }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - run_error_cmd_ping: false
+        do:
+          - ping_delay
+      - when: "{{ failed() and ctx().ping_iteration >= ctx().ping_retry }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - worknote: |
+                   The jump server {{ ctx().jump_server_name }} is not reachable. Escalating the task.
+                   
+                   {{ ctx().ping_result }}
+          - run_error_cmd_ping: true
+        do:
+          - itsm_escalate
+         
+  ping_delay:
+    action: core.pause
+    input:
+      max_pause: 300
+    next:
+      - when: "{{ succeeded() or failed() }}"
+        publish:
+          - ping_iteration: "{{ ctx().ping_iteration + 1 }}"
+        do:
+          - ping_test
+
+  itsm_update_notes:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  ping_nw_device:
+    action: core.winrm_ps_cmd
+    input:
+      host: "{{ ctx().automation_interface_server }}"
+      password: "{{ ctx().automation_interface_pass }}"
+      username: "{{ ctx().automation_interface_user }}"
+      verify_ssl_cert: "{{ ctx().winrm_verify_ssl }}"
+      port: "{{ ctx().winrm_port | int }}"
+      scheme: "{{ ctx().winrm_scheme }}"
+      cmd: "$Username={{ ctx().single_quote }}{{ ctx().jump_server_user }}{{ ctx().single_quote }} ; $Password={{ ctx().single_quote }}{{ ctx().jump_server_pass }}{{ ctx().single_quote }} ; $pass=ConvertTo-SecureString -AsPlainText $Password -Force ; $Cred=New-Object System.Management.Automation.PSCredential -ArgumentList $Username,$pass ; Invoke-Command -ComputerName 165.136.30.37 -ScriptBlock {ping -n 4 {{ ctx().device_name }}} -Credential $Cred"
+      timeout: 180
+    next:
+      - when: "{{ succeeded() and '(0% loss)' in result().stdout }}"
+        publish:
+          - nw_ping_out: "{{ result().stdout }}"
+          - worknote: |
+                   Ping Successful:
+                   
+                   {{ ctx().nw_ping_out }}
+        do:
+          - itsm_update_notes
+          - check_BCFController_IP
+      - when: "{{ failed() or (succeeded() and '(0% loss)' not in result().stdout) }}"
+        publish:
+          - esc_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - worknote: "Automation is escalating the incident. Could not reach the device {{ ctx().device_name }} from {{ ctx().jump_server_name }}. \n {{ ctx().esc_result }}"
+          - run_error: true
+          - run_error_uptime: true
+        do:
+          - itsm_escalate
+
+  check_BCFController_IP:
+    action: core.noop
+    next:
+      - when: "{{ ctx().device_name[0:5] == 'K2-NDC'  }}"
+        publish:
+          - controller_ip: "10.91.43.80"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "sho switch {{ ctx().device_name }} interface {{ ctx().interface }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'C4-NDC'  }}"
+        publish:
+          - controller_ip: "10.91.74.80"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'WTC-NDC' }}"
+        publish:
+          - controller_ip: "10.92.11.30"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'FTC-NDC' }}"
+        publish:
+          - controller_ip: "10.90.43.10"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'ASH-NDC' }}"
+        publish:
+          - controller_ip: "10.95.10.10"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'SAC-NDC' }}"
+        publish:
+          - controller_ip: "10.96.10.10"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ ctx().device_name[0:5] == 'CTC-DCD' }}"
+        publish:
+          - controller_ip: "10.97.10.10"
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().controller_ip }} \"sho switch {{ ctx().device_name }} interface {{ ctx().interface }}\""
+          - command_string: "Command: sho switch {{ ctx().device_name }} interface {{ ctx().interface }} executed on device {{ ctx().controller_ip }}"
+        do:
+          - check_interface
+      - when: "{{ (ctx().device_name[0:5] != 'K2-NDC') and (ctx().device_name[0:5] != 'C4-NDC') and (ctx().device_name[0:5] != 'WTC-NDC') and (ctx().device_name[0:5] != 'FTC-NDC') and (ctx().device_name[0:5] != 'ASH-NDC') and (ctx().device_name[0:5] != 'SAC-NDC') and (ctx().device_name[0:5] != 'CTC-DCD') }}"
+        publish:
+          - int_command: "echo y | C:\\Automation-DoNotDelete\\plink.exe -ssh -l {{ ctx().network_username }} -pw {{ ctx().single_quote }}{{ ctx().network_password }}{{ ctx().single_quote }} -ssh {{ ctx().device_ip }} \"show interface {{ ctx().interface }}\""
+          - command_string: "Command: show interface {{ ctx().interface }} executed on device {{ ctx().device_name }}"
+        do:
+          - check_interface
+
+  check_interface:
+    action: core.winrm_ps_cmd
+    input:
+      host: "{{ ctx().automation_interface_server }}"
+      password: "{{ ctx().automation_interface_pass }}"
+      username: "{{ ctx().automation_interface_user }}"
+      verify_ssl_cert: "{{ ctx().winrm_verify_ssl }}"
+      port: "{{ ctx().winrm_port | int }}"
+      scheme: "{{ ctx().winrm_scheme }}"
+      cmd: "$Username={{ ctx().single_quote }}{{ ctx().jump_server_user }}{{ ctx().single_quote }} ; $Password={{ ctx().single_quote }}{{ ctx().jump_server_pass }}{{ ctx().single_quote }} ; $pass=ConvertTo-SecureString -AsPlainText $Password -Force ; $Cred=New-Object System.Management.Automation.PSCredential -ArgumentList $Username,$pass ; Invoke-Command -ComputerName 165.136.30.37 -ScriptBlock {{ ctx().fb1 }}{{ ctx().int_command }}{{ ctx().fb2 }} -Credential $Cred"
+      timeout: 180
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - interface_out: "{{ result().stdout }}"
+          - worknote: |
+                   {{ ctx().command_string }}
+                   
+                   {{ ctx().interface_out }}
+        do:
+          - itsm_update_notes
+          - output_validation
+      - when: "{{ failed() }}"
+        publish:
+          - esc_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - worknote: "Automation is escalating the incident. Could not connect to {{ ctx().jump_server_name }}. \n {{ ctx().esc_result }}"
+          - run_error: true
+          - run_error_uptime: true
+        do:
+          - itsm_escalate
+          
+  
+  output_validation:
+    action: core.noop
+    next:
+      - when: "{{ 'is up' in ctx().interface_out and 'line protocol is down' not in ctx().interface_out and ctx().consecutive_success < 1 and ctx().recheck_total < ctx().total_retry }}"
+        publish:
+          - consecutive_success: "{{ ctx().consecutive_success + 1 }}"
+        do:
+          - iteration_delay
+      - when: "{{ 'is up' in ctx().interface_out and 'line protocol is down' not in ctx().interface_out and ctx().consecutive_success == 1 }}"
+        do:
+          - itsm_close
+      - when: "{{ 'is up' not in ctx().interface_out or 'line protocol is down' in ctx().interface_out and ctx().consecutive_success < 1 and ctx().recheck_total < ctx().total_retry }}"
+        do:
+          - iteration_delay
+      - when: "{{ 'is up' not in ctx().interface_out or 'line protocol is down' in ctx().interface_out and ctx().consecutive_success < 1 and ctx().recheck_total == ctx().total_retry }}"
+        publish:
+          - worknote: "Automation is escalating the incident. The port is down. Refer the worknotes."
+        do:
+          - itsm_escalate
+  
+
+  iteration_delay:
+    action: core.pause
+    input:
+      max_pause: 180
+    next:
+      - when: "{{ succeeded() or failed() }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - check_BCFController_IP
+
+          
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup        
+          
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. \n\n Command execution success. Port is up and responding."
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - insert_db       
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+                    
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:        
+          - insert_db         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - insert_db                  
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "Network Port Down"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: "{{ ctx().am_status }}"
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().device_name }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "nw_port_down_internal_services"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Network"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().start_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().device_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail 
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail

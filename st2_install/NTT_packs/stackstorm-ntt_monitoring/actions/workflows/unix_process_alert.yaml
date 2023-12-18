@@ -1,0 +1,257 @@
+---
+version: 1.0
+
+description: Check if the service status for the given Server is running or not
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - dns_domain
+  - inc_number
+  - inc_sys_id
+  - os_type
+  - short_desc
+  - incident_state
+  - configuration_item_name
+  - service
+  - ssh_password_key
+  - ssh_username_key
+  - ssh_tmp_dir_key
+
+vars:
+  - service_info: ""
+  - end_timestamp: ""
+  - error_message: ""
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""
+  - uptime_value: null
+  - service_passed: false
+
+output:
+  - service_info: "{{ ctx().service_info }}"
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_ssh_password_key: "{{ ctx().ssh_password_key }}"
+        bolt_ssh_username_key: "{{ ctx().ssh_username_key }}"
+        bolt_ssh_tmp_dir_key: "{{ ctx().ssh_tmp_dir_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      os_type: "{{ ctx().os_type }}"
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          #- uptime_value: "{{ result().output.uptime_value }}"
+          - uptime_value: "{{ result().output }}"
+        do:
+          - service_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - get_end_timestamp
+
+  service_check:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::unix_process_alert"
+      params:
+        service: "{{ ctx().service}}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - service_info: "{{ result().output.run.result.output }}"
+          - run: "{{ result().output.run }}"
+          - service_passed: true
+        do:
+          - itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - run: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().service_info }}"
+    next:
+      - when: "{{ completed() }}"
+        do:
+          - finish
+
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_close
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unix Process {{ ctx().service }} was checked by Automation and found to be not running currently. {{ ctx().run }}"
+        do:
+          - itsm_escalate
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details."
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - get_end_timestamp
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ completed() }}"
+        do:
+          - get_end_timestamp
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it."
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('service_check').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "service_check"
+        Status: "{{ 'Failure' if ( ctx().run_error or not ctx().service_passed ) else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if not ctx().run_error and ctx().service_passed %}
+          {{ ctx().service }}% and is running
+          {% endif %}
+          {% if not ctx().service_passed %}
+          {{ ctx().error_message }}
+          {{ ctx().service_info }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {% endif %}
+        AM_Status: "{{ 'Failure' if ( ctx().run_error or not ctx().service_passed ) else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "service_check"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Unix"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().configuration_item_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+

@@ -1,0 +1,23 @@
+---
+
+description: "Traverse the html content and fetch the list of server for which threshold has breached"
+
+enabled: true
+
+runner_type: "python-script"
+
+entry_point: healthcheck_traverse_exchange_report.py
+
+name: healthcheck_traverse_exchange_report
+
+pack: ntt_monitoring
+
+parameters:
+
+  HTML_doc:
+
+    type: string
+
+    description: "Exchange HTML Report"
+
+    required: true

@@ -1,0 +1,27 @@
+---
+name: "check_peer_neighbordetail_ios"
+pack: "ntt_monitoring"
+description: "To get the details of peer IP"
+runner_type: "python-script"
+entry_point:  check_peer_neighbordetail_ios.py
+enabled: true
+parameters:
+  username:
+    type: string
+    description: "Username to login to the remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "Password to login to the remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  ci_address:
+    type: string
+    description: "ci_address of the remote server"
+    required: true
+  peer_ip:
+    type: string
+    description: "Peer IP Address"
+    required: true
+    

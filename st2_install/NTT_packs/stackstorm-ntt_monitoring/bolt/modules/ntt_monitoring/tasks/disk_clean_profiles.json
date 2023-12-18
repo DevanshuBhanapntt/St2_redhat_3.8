@@ -1,0 +1,20 @@
+{
+  "description": "Remove user profiles that are older than the given age to clear disk space",
+  "implementations": [
+    {"name": "disk_clean_profiles.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to check on the server",
+      "type": "String[1]"
+    },
+    "profile_age_days": {
+      "description": "Any profiles that haven't been used in this many days will be removed",
+      "type": "Integer"
+    }
+  }
+}

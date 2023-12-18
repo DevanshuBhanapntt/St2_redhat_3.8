@@ -1,0 +1,73 @@
+---
+name: nw_snmp_check
+pack: ntt_monitoring
+description: "Network snmp agent not responding"
+runner_type: local-shell-script
+entry_point: nw_snmp_check.sh
+enabled: true
+parameters:
+  deviceIP:
+    type: string
+    description: "Device ip"
+    required: false
+    position: 1
+  version:
+    type: string
+    description: "snmp version"
+    required: false
+    position: 2
+  community:
+    type: string
+    description: "snmp community string"
+    required: false
+    position: 3
+  oid:
+    type: string
+    description: "oid"
+    required: false
+    position: 4
+  securityName:
+    type: string
+    description: "snmp security name"
+    required: false
+    position: 5
+  authProtocol:
+    type: string
+    description: "snmp auth protocol"
+    required: false
+    position: 6
+  authKey:
+    type: string
+    description: "snmp auth key"
+    required: false
+    position: 7
+  privKey:
+    type: string
+    description: "snmp private key"
+    required: false
+    position: 8
+  privprotocol:
+    type: string
+    description: "snmp private protocol"
+    required: false
+    position: 9
+  nw_clogin_path:
+    type: string
+    description: "nw clogin script"
+    required: false
+    position: 10
+  device_username:
+    type: string
+    description: "device username"
+    required: false
+    position: 11
+  device_password:
+    type: string
+    description: "device password"
+    required: false
+    position: 12
+  timeout:
+    type: integer
+    description: "timeout"
+    required: false
+    default: 800

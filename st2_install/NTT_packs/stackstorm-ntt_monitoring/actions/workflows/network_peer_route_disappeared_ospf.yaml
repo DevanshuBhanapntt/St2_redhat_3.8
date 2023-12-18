@@ -1,0 +1,752 @@
+---
+version: 1.0
+description: "OSPF Peer disappeared"
+#platform: Network
+#Datastore Keys: Nw_ospf_Rec_logic_days
+
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - incident_state
+  - username
+  - password
+  - os_type
+  - configuration_item_name
+  - rec_short_desc
+  - rec_detailed_desc
+  
+  
+vars:
+  - error_message: ""
+  - run_error_cmd_ping: false
+  - winrm_password_key: ""
+  - winrm_port_key: ""
+  - winrm_username_key: ""
+  - winrm_ssl_key: ""
+  - winrm_verify_ssl_key: ""
+  - run_error: ""
+  - end_timestamp: ""
+  - start_timestamp: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: ""
+  - login_status: ""  
+  - stdout_data: ""
+  - update_kv_result: ""
+  - am_status: ""
+  - packets_received: ""
+  - ping_message: ""
+  - peer_ip: ""  
+  - uptime_result: ""
+  - uptime_message: ""
+  - uptime_command: "show version"
+  - version_command: "show version"
+  - iterate_value: 0
+  - ios_result: ""
+  - status_message: ""
+  - neighbour_command: ""
+  - detail_result: ""
+  
+output:
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message }}"
+  - stdout_data: "{{ ctx().stdout_data }}"
+  - update_kv_result: "{{ ctx().update_kv_result }}"
+  - end_timestamp: "{{ ctx().end_timestamp }}"
+  - start_timestamp: "{{ ctx().start_timestamp }}"
+  - packets_received: "{{ ctx().packets_received }}"
+  - peer_ip: "{{ ctx().peer_ip }}"
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"       
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"        
+        do:
+          - check_incident_state
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - noop
+
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state == '-5') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2', '-5']) }}"
+        publish:
+          - error_message: "Incident state is not open or pending."
+          - run_error: true
+          - end_timestamp: "{{ task('check_incident_state').end_timestamp ]]"
+        do:
+          - insert_db
+
+
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() }}"        
+        do:
+          - check_recurrence
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - fail
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Nw_ospf_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+          
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it and due to recurring incidents. \n Recurrence status: {{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('rec_itsm_update_results').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: core.local
+    input:
+      cmd: "ping -c 10 {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout }}"
+          - packets_received: "{{ (result().stdout.split(',')[1]).split('received')[0]| int }}"
+          - run_error: false
+        do:
+          - validate_ping_result
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error: true
+          - error_message: "The device {{ ctx().ci_address }} is not reachable. \n {{ ctx().ping_result }}"
+        do:
+          - itsm_escalate
+
+  validate_ping_result:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().packets_received >= 6) }}"
+        publish:
+          - ping_message: "The network device {{ ctx().ci_address }} is reachable and more than 6 packets received." 
+        do:
+          - ping_itsm_update
+      - when: "{{ succeeded() and (ctx().packets_received < 6) }}"
+        publish:
+          - error_message: "The network device {{ ctx().ci_address }}is reachable, but less than 6 packets received. \n {{ ctx().ping_result }}"
+        do:
+          - itsm_escalate
+
+  ping_itsm_update:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Ping Result:\n{{ ctx().ping_result }}\n{{ ctx().ping_message }}"
+    next:
+      - when: "{{ succeeded() }}"       
+        do:
+          - check_connectivity
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"     
+        do:
+          - itsm_cleanup
+
+  check_connectivity:
+    action: ntt_monitoring.check_switch_connectivity
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().result }}"
+        publish:
+          - login_status: "Login Successful"
+          - login_out: "{{ result().stdout }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - fetch_peerip
+      - when: "{{ succeeded() and not result().result }}"
+        publish:
+          - login_status: "Login Failed"
+          - login_out: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_escalate_login_failed
+      - when: "{{ failed() }}"
+        publish:
+          - login_status: "Fail"
+          - login_out: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_escalate_login_failed
+
+  fetch_peerip:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ('OSPF Peer Disappeared' in ctx().detailed_desc) }}"
+        publish:
+          - peer_ip: "{{ ctx().detailed_desc.split(':')[4].strip().split(' ')[2] }}"
+        do:
+          - check_nw_uptime
+      - when: "{{ succeeded() and ('OSPF Peer Not Established' in ctx().detailed_desc or 'OSPF Peer Briefly Not Established' in ctx().detailed_desc) }}"
+        publish:
+          - peer_ip: "{{ ctx().detailed_desc.split(':')[2].strip().split(' ')[3].split(')')[0] }}"
+        do:
+          - check_nw_uptime
+
+  check_nw_uptime:
+    action: ntt_monitoring.check_uptime_peer
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      uptime_command: "{{ ctx().uptime_command }}"
+      inc_number: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and ('high' in result().stdout) }}"
+        publish:
+          - uptime_result: "{{ result().stdout }}"
+          - uptime_message: "Device uptime is greater than or equals to 30 minutes."
+        do:
+          -  uptime_itsm_update
+      - when: "{{ succeeded() and ('low' in result().stdout) }}"
+        publish:
+          - uptime_result: "{{ result().stdout }}"
+          - uptime_message: "Automation found uptime is lower than 30 minutes.\n RESULT: Device reboot occurred"
+        do:
+          -  itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to fetch Uptime details from check_nw task"
+          - uptime_message: "unable to execute task check_nw_uptime"
+        do:
+          - itsm_cleanup
+
+  uptime_itsm_update:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().uptime_message }} \n {{ ctx().uptime_result }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_device_os
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  check_device_os:
+    action: ntt_monitoring.check_os_peer
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      version_command: "{{ ctx().version_command }}"
+    next:
+      - when: "{{ succeeded() and ('IOS Device' in result().result) }}"
+        do:
+          - execute_cmd_ios
+      - when: "{{ succeeded() and ('Nexus Device' in result().result) }}"
+        do:
+          - execute_cmd_nxos
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Automation not able to fetch device os type. Escalating the incident."
+        do:
+          - itsm_cleanup
+
+  execute_cmd_ios:
+    action: ntt_monitoring.check_peer_neighbor_ios
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      neighbour_command: "{{ ctx().neighbour_command }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() and ('present' in result().stdout) and ('UP' in result().stdout) and ('OK' in result().stdout) and ctx().iterate_value < 2}}"
+        publish: 
+          - ios_result: "{{ result().stdout }}" 
+          - status_message: " Status of Peer IP is OK or GOOD. Initiating a wait of 2 minutes to check the status again"
+          - iterate_value: "{{ ctx().iterate_value + 1 }}"
+        do:
+          - status_itsm_reccuring_update_ios
+      - when: "{{ succeeded() and ('present' in result().stdout) and ('UP' in result().stdout) and ('OK' in result().stdout) and ctx().iterate_value >= 2 }}"
+        publish:
+          - ios_result: "{{ result().stdout }}"
+          - status_message: "status of Peer IP OK or GOOD after 2 iterations"
+        do:
+          - ios_result_update 
+      - when: "{{ succeeded() and ('not present' in result().stdout) }}" 
+        do:
+          - execute_detail_ios_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - ios_error_out: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - error_message: "Automation is escalating the task. \n Unable to find Interface for peer IP {{ ctx().peer_ip }}. \n {{ ctx().ios_error_out }}"
+        do:
+          - itsm_cleanup
+
+  status_itsm_reccuring_update_ios:
+    delay: 120
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbor and show interface and ping' on device {{ ctx().ci_address }}:\n\n{{ ctx().ios_result }}\n\n{{ ctx().status_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - execute_cmd_ios
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  ios_result_update:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbor and show interface and ping' on device {{ ctx().ci_address }}:\n\n{{ ctx().ios_result }}\n\n{{ ctx().status_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - execute_detail_ios_close
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  execute_detail_ios_close:
+    action: ntt_monitoring.check_peer_neighbordetail_ios
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:  
+          - detail_result: "{{ result().stdout }}" 
+        do:
+          -  ios_detail_update_close
+      - when: "{{ failed() }}"
+        publish:
+          - error_out: "{{ result().stdout if result().stdout != '' else result().stderr  }}"
+          - error_message: "Issuing 'show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface' on device {{ ctx().ci_address }}: \n {{ ctx().error_out }} \n\n RESULT: Command Failed"
+        do:
+          - itsm_cleanup 
+          
+  execute_detail_ios_escalate:
+    action: ntt_monitoring.check_peer_neighbordetail_ios
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - detail_result: "{{ result().stdout }}"
+        do:
+          -  ios_detail_update_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_out: "{{ result().stdout if result().stdout != '' else result().stderr  }}"
+          - error_message: "Issuing 'show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface' on device {{ ctx().ci_address }}: \n {{ ctx().error_out }} \n\n RESULT: Command Failed"
+        do:
+           - itsm_cleanup
+
+  ios_detail_update_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface' on device {{ ctx().ci_address }}:\n{{ ctx().detail_result }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_close
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  ios_detail_update_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface' on device {{ ctx().ci_address }}:\n{{ ctx().detail_result }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup       
+          
+  execute_cmd_nxos:
+    action: ntt_monitoring.check_peer_neighbour_nxos
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      neighbour_command: "{{ ctx().neighbour_command }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() and ('present' in result().stdout) and ('UP' in result().stdout) and ('OK' in result().stdout) and ctx().iterate_value < 2}}"
+        publish:
+          - nxos_result: "{{ result().stdout }}"
+          - status_message: " Status of Peer IP is OK or GOOD. Initiating a wait of 2 minutes to check the status again"
+          - iterate_value: "{{ ctx().iterate_value + 1 }}"
+        do:
+          - status_itsm_reccuring_update_nxos
+      - when: "{{ succeeded() and ('present' in result().stdout) and ('UP' in result().stdout) and ('OK' in result().stdout) and ctx().iterate_value >= 2 }}"
+        publish:
+          - nxos_result: "{{ result().stdout }}"
+          - status_message: "status of Peer IP OK or GOOD after 2 iterations"
+        do:
+          - nxos_result_update
+      - when: "{{ succeeded() and ('not present' in result().stdout) }}"
+        do:
+          -  execute_detail_nxos_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_out: "{{ result().stdout if result().stdout != '' else result().stderr  }}"
+          - error_message: "Issuing 'show ip ospf neighbors' on device {{ ctx().ci_address }}: \n {{ ctx().error_out }} \n\n RESULT: Command Failed"
+        do:
+          - itsm_cleanup
+
+  status_itsm_reccuring_update_nxos:
+    delay: 120
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbors' on device {{ ctx().ci_address }}:\n{{ ctx().ios_result }}\n{{ ctx().status_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - execute_cmd_nxos
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  nxos_result_update:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing 'show ip ospf neighbors' on device {{ ctx().ci_address }}:\n{{ ctx().ios_result }}\n{{ ctx().status_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - execute_detail_nxos_close
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  execute_detail_nxos_close:
+    action: ntt_monitoring.check_peer_neighbordetail_nxos
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - detail_result: "{{ result().stdout }}"
+        do:
+          -  nxos_detail_update_close
+      - when: "{{ failed() }}"
+        publish:
+          - error_out: "{{ result().stdout if result().stdout != '' else result().stderr  }}"
+          - error_message: "Issuing show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface and ping on device {{ ctx().ci_address }}: \n {{ ctx().error_out }} \n\n RESULT: Command Failed"
+        do:
+          - itsm_cleanup
+
+  execute_detail_nxos_escalate:
+    action: ntt_monitoring.check_peer_neighbordetail_nxos
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      peer_ip: "{{ ctx().peer_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - detail_result: "{{ result().stdout }}"
+        do:
+          -  nxos_detail_update_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_out: "{{ result().stdout if result().stdout != '' else result().stderr  }}"
+          - error_message: "Issuing show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface and ping on device {{ ctx().ci_address }}: \n {{ ctx().error_out }} \n\n RESULT: Command Failed"
+        do:
+          - itsm_cleanup
+
+
+  nxos_detail_update_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface and ping on device {{ ctx().ci_address }}:\n{{ ctx().detail_result }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_close
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  nxos_detail_update_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      #work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Issuing show ip ospf neighbor detail and show ip ospf border-routers and show ip ospf interface and ping on device {{ ctx().ci_address }}:\n{{ ctx().detail_result }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  itsm_escalate_login_failed:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to login to the remote machine {{ ctx().ci_address }}. \n {{ ctx().login_out }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }} while escalate"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident.Refer the worknotes, \n {{ ctx().stdout_data }} \n {{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident."
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+        do:
+           - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating the incident. \n {{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "Network Peer Route Disappeared OSPF"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc:
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "helix"
+        Job_Id: <% ctx(st2).action_execution_id %>
+        Module_Name: "Network Peer Route Disappeared OSPF"
+        Ref_No: "{{ ctx().inc_number }}"
+        # Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc | replace(':', ': ') }}"
+        Detail_Desc: "{{ ctx().detailed_desc | replace(':', ': ') }}"
+        end_timestamp: "{{ ctx().end_timestamp }}"
+        start_timestamp: "{{ ctx().start_timestamp }}"
+        account_name: "{{ ctx().customer_name }}"
+        account_service: "{{ ctx().customer_name }}"
+        incident_id: "{{ ctx().inc_number }}"
+        configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail
+  
+  
+  

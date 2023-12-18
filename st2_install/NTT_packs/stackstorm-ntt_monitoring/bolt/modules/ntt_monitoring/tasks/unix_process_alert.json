@@ -1,0 +1,14 @@
+{
+  "description": "Runs a script on a remote server to retrieve service status",
+  "implementations": [
+    {
+      "name": "unix_process_alert.sh"
+    }
+  ],
+  "parameters": {
+     "service": {
+        "description": "service name to be checked",
+        "type": "String[1]"
+    }
+  }
+}

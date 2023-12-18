@@ -1,0 +1,17 @@
+---
+description: "Checks the kv store for the given incident ID and adds it if it isn't there"
+enabled: true
+runner_type: "python-script"
+entry_point: servicenow_processing_incs_add.py
+name: servicenow_processing_incs_add
+pack: ntt_itsm
+parameters:
+  inc_id:
+    type: string
+    description: "ServiceNow incident number to add to the kv store"
+    required: true
+  inc_st2_key:
+    type: string
+    description: "Name of the kv store key to save the incident number to"
+    required: true
+    default: "servicenow.incidents_processing"

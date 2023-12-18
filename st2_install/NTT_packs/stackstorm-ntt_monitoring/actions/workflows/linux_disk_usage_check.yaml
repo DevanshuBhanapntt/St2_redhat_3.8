@@ -1,0 +1,413 @@
+---
+version: 1.0
+description: Gather disk utilization information for the given VM and disk name
+#platform: Linux
+
+input:
+  - assignment_group
+  - ci_address   
+  - customer_abbr
+  - customer_name
+  - inc_number
+  - inc_sys_id
+  - incident_state
+  - disk_name
+  - disk_threshold  
+  - os_type
+  - short_desc
+  - detailed_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - configuration_item_name
+  - ssh_password_key
+  - ssh_username_key
+  - ssh_tmp_dir_key
+  - winrm_password_key
+  - winrm_port_key
+  - winrm_username_key
+  - winrm_ssl_key
+  - winrm_verify_ssl_key
+ 
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""  
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""  
+  - threshold_passed: true
+  - am_status: "Success"
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - disk_passed : false
+  - disk_current_util: null
+  - disk_proccess_info: ""
+  - linux_disk_yum_cache_clear: false
+  - linux_disk_clean_files: ""
+
+output:  
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+  - linux_disk_yum_cache_clear: "{{ ctx().linux_disk_yum_cache_clear }}"
+  - linux_disk_clean_files: "{{ ctx().linux_disk_clean_files }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:        
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"
+        threshold_disk_usage: "{{ ctx().disk_threshold }}"                 
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+          - linux_disk_yum_cache_clear: "{{ result().result.linux_disk_yum_cache_clear }}"
+          - linux_disk_clean_files: "{{ result().result.linux_disk_clean_files }}"          
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - itsm_cleanup 
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      os_type: "{{ ctx().os_type }}"
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - uptime_value: "{{ result().output.uptime_value }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - check_recurrence         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - get_end_timestamp
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "linux_disk_usage_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_check 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:      
+          - disk_usage_check 
+          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup   
+          
+  rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}" 
+        do:
+          - rec_itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup 
+     
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true    
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:          
+          - disk_usage_check 
+      - when: "{{ failed() }}"
+        do:
+          - noop 
+          
+  disk_usage_check:
+    action: ntt_monitoring.bolt_plan
+    input:
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::linux_disk_check"
+      server_fqdn: "{{ ctx().ci_address }}"
+      params:
+        disk_name: "{{ ctx().disk_name }}"
+        linux_disk_yum_cache_clear: "{{ ctx().linux_disk_yum_cache_clear }}"
+        linux_disk_clean_files: "{{ ctx().linux_disk_clean_files }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:          
+          - disk_proccess_info: "{{ result().output.run.result.output }}"
+          - disk_current_util:  "{{ result().output.run.result.current_disk_util | int }}"
+        do:
+          - itsm_update_results 
+          - finish          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and not ctx().found_recurrence  and ctx().disk_current_util < ctx().disk_threshold | int }}"
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and ctx().disk_current_util >= ctx().disk_threshold | int }}"
+        publish:
+          - error_message: "The disk {{ ctx().disk_name }} utilization for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().disk_current_util }}%"
+          - threshold_passed: false
+        do:
+          - itsm_escalate 
+      - when: "{{ succeeded() and ctx().found_recurrence and ctx().disk_current_util < ctx().disk_threshold | int }}"
+        do:
+          - itsm_escalate_recurrence 
+          
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. The disk {{ ctx().disk_name }} utilization for {{ ctx().ci_address }} is below the threshold ({{  ctx().disk_threshold }}%) and current utilization is {{ ctx().disk_current_util }}%"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it. The disk {{ ctx().disk_name }} utilization for {{ ctx().ci_address }} is above the threshold ({{  ctx().disk_threshold }}%) and current utilization is {{ ctx().disk_current_util }}%"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup        
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details.The disk  {{ ctx().disk_name }} utilization for {{ ctx().ci_address }} is below the threshold ({{  ctx().disk_threshold }}%) and current utilization is {{ ctx().disk_current_util }}%"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp       
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().disk_proccess_info }}"
+    next:
+      - when: "{{ succeeded()}}"         
+        do:
+          #- finish 
+          - noop          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup     
+          
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:        
+          - get_end_timestamp 
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:        
+          - itsm_escalate_runtime_error           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+          
+  itsm_escalate_runtime_error:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }} {{ ctx().error_output }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db   
+  
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "linux_disk_usage_check"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if ctx().threshold_passed %}
+          Disk utilization is at {{ ctx().disk_current_util }}% and is under the threshold {{ ctx().disk_threshold }}%.
+          {{ ctx().found_recurrence_value }}                  
+          {% endif %}
+          {% if not ctx().threshold_passed %}
+          {{ ctx().error_message }}
+          {{ ctx().disk_proccess_info }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %} 
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "linux_disk_usage_check"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Windows"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail 
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ( ctx().run_error or not ctx().threshold_passed ) }}"
+        do:
+          - fail

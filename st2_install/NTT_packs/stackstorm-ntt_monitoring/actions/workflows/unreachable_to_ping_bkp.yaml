@@ -1,0 +1,495 @@
+---
+version: 1.0
+description: "This workflow is used to determine if the CI to be tested can be reached by ping and if the uptime is a desirable amount"
+#platform: Windows
+
+input:
+  - assignment_group
+  - check_uptime
+  - ci_address
+  - close_incident
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - insert_db
+  - os_type
+  - ping_count
+  - recheck_limit
+  - short_desc
+  - sleep_interval
+  - ssh_password
+  - ssh_username
+  - uptime_threshold
+  - winrm_password
+  - winrm_port
+  - winrm_scheme
+  - winrm_username
+  - winrm_verify_ssl
+  - configuration_item_name
+  - rec_short_desc
+  - rec_detailed_desc
+
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - ping_result: ""
+  - recheck_total: 0
+  - run_error: false
+  - run_error_ping: false
+  - run_error_cmd_ping: false
+  - run_error_uptime: false
+  - start_timestamp: ""
+  # The number of days the device has been up
+  - uptime_days: 0
+  - uptime_value: ""
+  - found_recurrence_inc_cnt: 0
+  - found_recurrence: false
+  - found_recurrence_value: ""  
+  - am_status: "Failure"
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - uptime_days: "{{ ctx().uptime_days }}"
+  - uptime_value: "{{ ctx().uptime_value }}"
+  - ping_result: "{{ ctx().ping_result }}"
+  - run_error_uptime: "{{ ctx().run_error_uptime }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        ping_count: "{{ ctx().ping_count }}"
+        recheck_limit: "{{ ctx().recheck_limit }}"
+        sleep_interval: "{{ ctx().sleep_interval }}"
+        ssh_password: "{{ ctx().ssh_password }}"
+        ssh_username: "{{ ctx().ssh_username }}"
+        uptime_threshold: "{{ ctx().uptime_threshold }}"
+        winrm_password: "{{ ctx().winrm_password }}"
+        winrm_port: "{{ ctx().winrm_port }}"
+        winrm_scheme: "{{ ctx().winrm_scheme }}"
+        winrm_username: "{{ ctx().winrm_username }}"
+        winrm_verify_ssl: "{{ ctx().winrm_verify_ssl }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - db_drivername: "{{ result().result.db_drivername if 'db_drivername' in result().result else '' }}"
+          - db_host: "{{ result().result.db_host if 'db_host' in result().result else '' }}"
+          - db_name: "{{ result().result.db_name if 'db_name' in result().result else '' }}"
+          - db_password: "{{ result().result.db_password if 'db_password' in result().result else '' }}"
+          - db_username: "{{ result().result.db_username if 'db_username' in result().result else '' }}"
+          - ssh_password: "{{ result().result.connections.ssh_password if 'connections' in result().result and 'ssh_password' in result().result.connections else '' }}"
+          - ssh_username: "{{ result().result.connections.ssh_username if 'connections' in result().result and 'ssh_username' in result().result.connections else '' }}"
+          - winrm_password: "{{ result().result.connections.winrm_password if 'connections' in result().result and 'winrm_password' in result().result.connections else '' }}"
+          - winrm_port: "{{ result().result.connections.winrm_port if 'connections' in result().result and 'winrm_port' in result().result.connections else '' }}"
+          - winrm_scheme: "{{ result().result.connections.winrm_scheme if 'connections' in result().result and 'winrm_scheme' in result().result.connections else '' }}"
+          - winrm_username: "{{ result().result.connections.winrm_username if 'connections' in result().result and 'winrm_username' in result().result.connections else '' }}"
+          - winrm_verify_ssl: "{{ result().result.connections.winrm_verify_ssl if 'connections' in result().result and 'winrm_verify_ssl' in result().result.connections else '' }}"
+          - uptime_threshold: "{{ result().result.threshold_uptime_low | int if 'threshold_uptime_low' in result().result else '' }}"
+          - sleep_interval: "{{ result().result.sleep_interval | int if 'sleep_interval' in result().result else '' }}"
+          - recheck_limit: "{{ result().result.recheck_limit | int if 'recheck_limit' in result().result else '' }}"
+          - ping_count: "{{ result().result.ping_count | int if 'ping_count' in result().result else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - itsm_begin
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - db_dispatch
+
+  itsm_begin:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() and not ctx().close_incident }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and ctx().close_incident }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - db_dispatch
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Win_hostdown_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().ci_address }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - ping_test           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - db_dispatch
+          
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:          
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - db_dispatch
+
+  ping_test:
+    action: core.local
+    input:
+      cmd: "ping -c {{ ctx().ping_count }} {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().stdout != '' }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout }}"
+          - run_error_cmd_ping: false
+        do:
+          - itsm_update_results
+      - when: "{{ failed() or (succeeded() and result().stderr != '') }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_cmd_ping: true
+          - run_error: true
+        do:
+          - itsm_update_results
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().ping_result }}"
+    next:
+      - when: "{{ completed() and not ctx().run_error_cmd_ping }}"
+        do:
+          - uptime_dispatch
+      - when: "{{ completed() and ctx().run_error_cmd_ping }}"
+        do:
+          - threshold_check
+
+  threshold_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: false
+      rerun_limit: "{{ ctx().recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      sleep_interval: "{{ ctx().sleep_interval }}"
+      timeout: "{{ ctx().sleep_interval + 30 }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - error_message: "Device {{ ctx().ci_address }} could not be reached by ping"
+          - run_error_ping: true
+          - run_error: true
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - itsm_escalate
+
+  uptime_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().check_uptime and ctx().os_type == 'windows' }}"
+        do:
+          - get_uptime_windows
+      - when: "{{ succeeded() and ctx().check_uptime and ctx().os_type == 'linux' }}"
+        do:
+          - get_uptime_linux
+      - when: "{{ succeeded() and not ctx().check_uptime and ctx().close_incident }}"
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and not ctx().check_uptime and not ctx().close_incident }}"
+        do:
+          - db_dispatch
+
+  get_uptime_windows:
+    action: core.winrm_ps_cmd
+    input:
+      host: "{{ ctx().ci_address }}"
+      password: "{{ ctx().winrm_password }}"
+      username: "{{ ctx().winrm_username }}"
+      verify_ssl_cert: "{{ ctx().winrm_verify_ssl }}"
+      port: "{{ ctx().winrm_port | int }}"
+      scheme: "{{ ctx().winrm_scheme }}"
+      # The following command will return the uptime in "x days, y hours, z minutes" format
+      cmd: "(get-date) - (gcim Win32_OperatingSystem).LastBootUpTime | ForEach-Object{ Write-Host $_.Days days`, $_.Hours hours`, $_.Minutes minutes}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('get_uptime_windows').end_timestamp }}"
+          - uptime_value: "{{ result().stdout | trim }}"
+          - uptime_days: "{{ result().stdout.split(' ')[0] | int }}"
+        do:
+          - itsm_update_uptime
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('get_uptime_windows').end_timestamp }}"
+          - error_message: "Could not connect to {{ ctx().ci_address }} please check the credentials used and try again"
+          - run_error: true
+          - run_error_uptime: true
+        do:
+          - itsm_update_uptime
+
+  get_uptime_linux:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      password: "{{ ctx().ssh_password }}"
+      username: "{{ ctx().ssh_username }}"
+      # The following command will return the uptime in "x days, y hours, z minutes" format
+      cmd: "uptime | awk -F'( |,|:)+' '{d=h=m=0; if ($7==\"min\") m=$6; else {if ($7~/^day/) {d=$6;h=$8;m=$9} else {h=$6;m=$7}}} {print d+0,\"days,\",h+0,\"hours,\",m+0,\"minutes\"}'"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('get_uptime_linux').end_timestamp }}"
+          - uptime_value: "{{ result()[ctx().ci_address].stdout }}"
+          - uptime_days: "{{ result()[ctx().ci_address].stdout.split(' ')[0] | int }}"
+        do:
+          - itsm_update_uptime
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('get_uptime_linux').end_timestamp }}"
+          - error_message: "Could not connect to {{ ctx().ci_address }} please check the credentials used and try again"
+          - run_error: true
+          - run_error_uptime: true
+        do:
+          - itsm_update_uptime
+
+  itsm_update_uptime:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Uptime value for: {{ ctx().ci_address }} is {{ ctx().uptime_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - finish
+      - when: "{{ failed() }}"
+        do:
+          - db_dispatch
+  
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ not ctx().run_error_uptime and ctx().uptime_days < ctx().uptime_threshold and not ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_update_uptime').end_timestamp }}"
+          - error_message: "Uptime value: {{ ctx().uptime_days }} days is less than the threshold"
+          - run_error: true
+        do:
+          - itsm_escalate
+      - when: "{{ not ctx().run_error_uptime and ctx().uptime_days < ctx().uptime_threshold and ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_update_uptime').end_timestamp }}"
+          - error_message: "Uptime value: {{ ctx().uptime_days }} days is less than the threshold"
+          - run_error: true
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ not ctx().run_error_uptime and ctx().uptime_days >= ctx().uptime_threshold and ctx().close_incident and not ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_update_uptime').end_timestamp }}"
+        do:
+          - itsm_close
+      - when: "{{ not ctx().run_error_uptime and ctx().uptime_days >= ctx().uptime_threshold and ctx().close_incident and ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_update_uptime').end_timestamp }}"
+          - error_message: "See work log for details."
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ not ctx().run_error_uptime and ctx().uptime_days >= ctx().uptime_threshold and not ctx().close_incident }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_update_uptime').end_timestamp }}"
+        do:
+          - db_dispatch
+      - when: "{{ ctx().run_error_uptime }}"
+        publish:
+          - error_message: "Automation failed to fetch uptime of ci {{ ctx().ci_address }}"
+        do:
+          - itsm_escalate
+  
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is escalating this incident as it was unable to resolve it and due to recurring incidents.
+        
+        {{ ctx().error_message }}           
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - db_dispatch
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - db_dispatch
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details."
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - db_dispatch
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - db_dispatch
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: | 
+        Automation is escalating this incident as it was unable to resolve it.
+        
+        {{ ctx().error_message }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - db_dispatch
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - db_dispatch
+
+  db_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and not ctx().insert_db and not ctx().close_incident and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and not ctx().insert_db and not ctx().close_incident and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ succeeded() and not ctx().insert_db and ctx().close_incident }}"
+        do:
+          - update_kv_var
+      - when: "{{ succeeded() and ctx().insert_db }}"
+        publish:
+          - end_timestamp: "{{ task('db_dispatch').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "unreachable_to_ping"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if ( ctx().check_uptime and not ctx().run_error ) %}
+          Device is online and uptime value is: {{ ctx().uptime_days }} days
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {% endif %}
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "unreachable_to_ping"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and ctx().close_incident and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - update_kv_var
+      - when: "{{ succeeded() and ctx().close_incident and ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and not ctx().close_incident and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and not ctx().close_incident and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail

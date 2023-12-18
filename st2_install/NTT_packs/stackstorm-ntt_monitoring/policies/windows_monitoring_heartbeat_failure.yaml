@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: windows_monitoring_heartbeat_failure.concurrency
+description: Limits the concurrent executions for ntt_monitoring.windows_monitoring_heartbeat_failure
+enabled: true
+resource_ref: ntt_monitoring.windows_monitoring_heartbeat_failure
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

@@ -1,0 +1,41 @@
+---
+version: 1.0
+
+description: "Get a list of processing ITSM changes from the kv store and check if they are still open"
+
+vars:
+  - error_message: ""
+  - itsm_tool: ""
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - itsm_tool: "{{ ctx().itsm_tool }}"
+tasks:
+  config_vars_get:
+    action: ntt_itsm.config_vars_get
+    next:
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'servicenow' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'helix' }}"
+        publish:
+          - itsm_tool: "{{ result().result['itsm_tool'] }}"
+        do:
+          - helix_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get ITSM info please check the config file and try again"
+        do:
+          - fail
+   
+  helix_check:
+    action: ntt_itsm.helix_processing_change_check
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not update the kv store with processing incidents!"
+        do:
+          - fail

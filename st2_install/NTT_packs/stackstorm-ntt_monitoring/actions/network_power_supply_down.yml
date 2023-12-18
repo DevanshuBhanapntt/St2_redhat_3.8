@@ -1,0 +1,93 @@
+---
+name: network_power_supply_down
+pack: ntt_monitoring
+description: action file for network device module alarm
+runner_type: orquesta
+entry_point: workflows/network_power_supply_down.yaml
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: '2'
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  script_name:
+    type: string
+    description: "c login script path"
+    required: true
+    default: "/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh"
+  script_options:
+    type: string
+    description: "c login script options"
+    required: true
+    default: "-noenable"
+  #create two datastore entries if not available, network.username = network device user and network.password = network device password
+  username:
+    type: string
+    description: "Username to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "Password to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  version_command:
+    type: string
+    description: "command to check version details"
+    required: true
+    default: "show version"
+  show_clock:
+    type: string
+    description: "command to check inventory details"
+    required: true
+    default: "show clock"
+  power_supply_cmd:
+    type: string
+    description: "command to check show detail output"
+    required: true
+    default: "show environment all | include power"
+  configuration_item_name:
+    type: string
+    description: "Network device Name from CI field."
+    required: true
+  rec_short_desc:
+    type: string
+    description: "Short description string from sensor to find recurrence"
+    required: true
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string from sensor to find recurrence"
+    required: true

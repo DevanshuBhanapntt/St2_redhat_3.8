@@ -1,0 +1,7 @@
+---
+name: itsm_processing_incs_check
+pack: ntt_itsm
+description: "Get a list of processing ITSM incidents from the kv store and check if they are still open"
+runner_type: orquesta
+entry_point: workflows/itsm_processing_incs_check.yaml
+enabled: true

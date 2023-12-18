@@ -1,0 +1,7 @@
+[mongodb-org-4]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/8/mongodb-org/4.0/x86_64/
+gpgcheck=0
+repo_gpgcheck=0
+enabled=0
+gpgkey=https://www.mongodb.org/static/pgp/server-4.0.asc

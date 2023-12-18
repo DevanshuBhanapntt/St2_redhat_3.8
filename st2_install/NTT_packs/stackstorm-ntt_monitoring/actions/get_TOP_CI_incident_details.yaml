@@ -1,0 +1,32 @@
+---
+description: "Get all Incidents and details for one CI in paragraph format"
+enabled: true
+runner_type: "python-script"
+name: get_TOP_CI_incident_details
+pack: ntt_monitoring
+entry_point: get_TOP_CI_incident_details.py
+parameters:
+  inc_data:
+    type: string
+    description: "YAML String data off all incidents for a CI"
+    required: true
+  daily_data:
+    type: string
+    description: "Daily ticket counts and if threshold Pass or Fail"
+    required: true
+  weekly_data:
+    type: string
+    description: "Weekly ticket counts and if threshold Pass or Fail"
+    required: true
+  monthly_data:
+    type: string
+    description: "Monthly ticket counts and if threshold Pass or Fail"
+    required: true
+  config_item:
+    type: string
+    description: "Configuration item"
+    required: true
+  customer:
+    type: string
+    description: "Customer name"
+    required: true

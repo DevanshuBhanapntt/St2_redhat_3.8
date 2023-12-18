@@ -1,0 +1,65 @@
+---
+description: "Determines the vendor of a given network device using SNMP"
+enabled: true
+runner_type: "python-script"
+entry_point: snmp_get_vendor.py
+name: snmp_get_vendor
+pack: ntt_monitoring
+parameters:
+  nms_ip:
+    type: string
+    description: "NMS interface IP address of the network device; used in v3 commands"
+    required: false
+  snmp_auth_key:
+    type: string
+    description: "Authorization key to be used to connect to the network device; used in v3 commands"
+    required: false
+  snmp_community:
+    type: string
+    description: "Community used to connect to the network device"
+    required: false
+  snmp_ip:
+    type: string
+    description: "IP address of the network device to be tested"
+    required: true
+  snmp_oid:
+    type: string
+    description: "OID address of the network device to be tested"
+    required: true
+  snmp_password:
+    type: string
+    description: "Password of the username used to login to the network device; used in v3 commands"
+    required: false
+    secret: true
+  snmp_port:
+    type: integer
+    description: "The port on the network device to be connected to; used in v3 commands"
+    required: false
+  snmp_privacy:
+    type: string
+    description: "Privacy protocol used on the network device; used in v3 commands"
+    required: false
+  snmp_priv_key:
+    type: string
+    description: "Private passphrase used to connect to the network device; used in v3 commands"
+    required: false
+    secret: true
+  snmp_protocol:
+    type: string
+    description: "Security protocol type used on the network device (md5, sha); used in v3 commands"
+    required: false
+  snmp_security:
+    type: string
+    description: "Security level to be used on the network device; used in v3 commands"
+    required: false
+  snmp_username:
+    type: string
+    description: "Username used to login to the network device; used in v3 commands"
+    required: false
+  snmp_version:
+    type: string
+    description: "What version of SNMP is ran on the network device to be tested"
+    required: true
+    enum:
+      - v2
+      - v3

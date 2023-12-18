@@ -1,0 +1,335 @@
+---
+customers:
+  type: "object"
+  required: true
+  patternProperties:
+    "[0-9a-zA-Z]{3}|default":
+      "$ref": "#/properties/customer_vars"
+  additionalProperties: false
+
+customer_vars:
+  type: "object"
+  properties:
+    connections:
+      "$ref": "#/properties/connections"
+    cpu_top_process_limit:
+      description: "CPU utilization limit for top processes"
+      type: "string"
+    db_drivername:
+      description: "The type of database that is being connected to"
+      type: "string"
+    db_host:
+      description: "The database server to connect to"
+      type: "string"
+    db_metric_detail_procedure:
+      description: "Name of the procedure that inserts data into the metric details table"
+      type: "string"
+    db_metric_procedure:
+      description: "Name of the procedure that inserts data into the metric table"
+      type: "string"
+    db_name:
+      description: "Name of the database to connect to"
+      type: "string"
+    db_password:
+      description: "Password of the specified username to connect to the databae"
+      type: "string"
+      secret: true
+    db_process_procedure:
+      description: "Name of the procedure that inserts data into the process table"
+      type: "string"
+    db_username:
+      description: "Username for authentication to the database"
+      type: "string"
+    disk_bolt_timeout:
+      description: "Bolt timeout for the disk cleanup bolt plan"
+      type: "string"
+    disk_clean_cleanmgr_tasks:
+      description: "Whether or not to run cleanmgr tasks (empty recycle bin)"
+      type: "string"
+    disk_clean_compress_files:
+      description: "Whether or not to compress all files with the given extension(s) that are older than the given age"
+      type: "string"
+    disk_clean_compress_file_age_days:
+      description: "Age of files to run compression on (Days)"
+      type: "string"
+    disk_clean_compress_file_exts:
+      description: "List of file extensions to compress (e.x. [':*.TXT', ':*.DOC'])"
+      type: "array"
+      items:
+        pattern: ":\\*\\.[a-zA-Z]{3}"
+    disk_clean_compress_file_min_size_mb:
+      description: "Files larger than this size will get compressed"
+      type: "string"
+    disk_clean_directories:
+      description: "List of directories (full paths) to clean if the disk utilization is above the given threshold"
+      type: "array"
+    disk_clean_file_exts:
+      description: "List of file extensions to delete from the disk if it is above the threshold"
+      type: "array"
+      items:
+        pattern: ":\\*\\.[a-zA-Z]{3}"
+    disk_clean_file_names:
+      description: "List of file names to delete from the disk if it is above the threshold"
+      type: "array"
+    disk_clean_profile_age_days:
+      description: "Any profiles that haven't been used in this many days will be removed"
+      type: "string"
+    disk_clean_remove_profile:
+      description: "Whether or not to remove profiles that have not been used in X amount of time (disk_clean_profile_age_days)"
+      type: "string"
+    disk_clean_remove_temp_files:
+      description: "Whether or not to clear all files from the temp directories"
+      type: "string"
+    disk_clean_remove_temp_ie_files:
+      description: "Whether or not to clear all files from the temp IE directories"
+      type: "string"
+    disk_clean_temp_folders:
+      description: "List of temp folders to clear from the disk if it is above the threshold"
+      type: "array"
+    dns_domain:
+      description: "DNS domain to append to the hostname"
+      type: "string"
+    max_failures:
+      description: "Total number of times the memory utilization may be found to be above the threshold"
+      type: "string"
+    memory_status:
+      description: "Status of the ticket"
+      type: "string"
+    ping_count:
+      description: "Number of packets to send when checking ping connectivity"
+      type: "string"
+    recheck_limit:
+      description: "Number of times to re-ping the CI device if the first ping fails"
+      type: "string"
+    sleep_interval:
+      description: "How long to wait (in seconds) between each threshold check"
+      type: "string"
+    ping_interval:
+      description: "How long to wait (in seconds) between each threshold check for hostdown automation"
+      type: "string"
+    threshold_cpu_high:
+      description: "Maximum acceptable CPU usage on the server"
+      type: "string"
+    Win_cpu_pending_mins:
+      description: "How long to wait (in mins) between iteration"
+      type: "string"
+    Win_cpu_max_failures:
+      description: "Total number of times the cpu utilization may be found to be above the threshold"
+      type: "string"
+    Win_cpu_recheck_limit:
+      description: "Number of times to re-check cpu in the CI device"
+      type: "string"
+    unix_cpu_pending_mins:
+      description: "How long to wait (in mins) between iteration"
+      type: "string"
+    unix_cpu_max_failures:
+      description: "Total number of times the cpu utilization may be found to be above the threshold"
+      type: "string"
+    unix_cpu_recheck_limit:
+      description: "Number of times to re-check cpu in the CI device"
+      type: "string"
+    unix_memory_pending_mins:
+      description: "How long to wait (in mins) between iteration"
+      type: "string"
+    unix_memory_max_failures:
+      description: "Total number of times the cpu utilization may be found to be above the threshold"
+      type: "string"
+    unix_memory_recheck_limit:
+      description: "Number of times to re-check cpu in the CI device"
+      type: "string"
+    threshold_disk_mb:
+      description: "Minimum acceptable free space for each disk (MB)"
+      type: "string"
+    threshold_disk_type:
+      description: "Whether the threshold check should use a percent or MB"
+      type: "string"
+    threshold_disk_percent:
+      description: "Maximum acceptable disk usage on the server (percent)"
+      type: "string"
+    threshold_memory_high:
+      description: "Maximum acceptable memory usage on the server"
+      type: "string"
+    threshold_port_high:
+      description: "Maximum acceptable port usage on the network device"
+      type: "string"
+    threshold_uptime_low:
+      description: "Minimum acceptable days that a device has been up"
+      type: "string"
+    threshold_Win_memory_high:
+      description: "Maximum acceptable memory usage on the winddows server"
+      type: "string"    
+    Win_Memory_max_failures:
+      description: "Total number of times the memory utilization may be found to be above the threshold"
+      type: "string"    
+    Win_Memory_recheck_limit:
+      description: "Number of times to re-check memory the CI device"
+      type: "string" 
+    Win_Memory_pending_mins:
+      description: "How long to wait (in mins) between iteration"
+      type: "string"
+    Win_service_Restricted:
+      description: "Automation Restricted service name list"
+      type: "array"
+    Win_service_StatusCheck_Only:
+      description: "Automation should check only status -service name list"
+      type: "array"
+    Win_service_Restart:
+      description: "Automation should restart the service name list"
+      type: "array"
+    linux_disk_yum_cache_clear:
+      description: "clear the yum cache on linux server"
+      type: "string"
+    linux_disk_clean_files:
+      description: "clear the mentioned files on the linux servers"
+      type: "string"
+    threshold_Win_cpu_queue_length:
+      description: "Maximum acceptable cpu queue length error on the winddows server"
+      type: "string"    
+    Win_cpu_queue_max_failures:
+      description: "Total number of times the cpu queue length error may be found to be above the threshold"
+      type: "string"    
+    Win_cpu_queue_recheck_limit:
+      description: "Number of times to re-check cpu queue length error the CI device"
+      type: "string" 
+    Win_cpu_queue_pending_mins:
+      description: "How long to wait (in seconds) between each threshold check"
+      type: "string"
+    device_username:
+      description: "used this user name connects the Network device"
+      type: "string"
+    device_password:
+      description: "used this password connects the Network device"
+      type: "string"
+    snmp_version:
+      description: "snmp verison for connects the Network device"
+      type: "string"
+    snmp_securityName:
+      description: "snmp securityName for connects the Network device"
+      type: "string"
+    snmp_authProtocol:
+      description: "snmp authProtocol for connects the Network device"
+      type: "string"
+    snmp_authKey:
+      description: "snmp authKey for connects the Network device"
+      type: "string"
+    snmp_privKey:
+      description: "snmp privKey for connects the Network device"
+      type: "string"
+    snmp_PrivProtocol:
+      description: "snmp PrivProtocol for connects the Network device"
+      type: "string"
+    snmp_community:
+      description: "snmp community for connects the Network device"
+      type: "string"
+    nw_unreachable_to_ping_ping_count:
+      description: "ping count for ping the Network device"
+      type: "string"
+    nw_unreachable_to_ping_ping_recheck_limit:
+      description: "how many times needs to ping if the first ping is false on the Network device"
+      type: "string"
+    nw_unreachable_to_ping_ping_sleep_interval:
+      description: "how much times needs sleep for each ping iterations on the Network device"
+      type: "string"
+    nw_unreachable_to_ping_ping_success_packets_received:
+      description: "validate the success packets received while pinging the Network device"
+      type: "string"
+    nw_unreachable_to_ping_ping_packets_loss_threshold_per:
+      description: "validate the success packets loss while pinging the Network device"
+      type: "string"
+    nw_clogin_script_server_username:
+      description: "user name for to connect the clogin script server"
+      type: "string"
+    nw_clogin_script_server_password:
+      description: "passwrod for to connect the clogin script server"
+      type: "string"
+    nw_clogin_script_server_IP:
+      description: "IPAddress for to connect the clogin script server"
+      type: "string"
+    nw_clogin_script_path:
+      description: "Path for network script"
+      type: "string"
+    nw_nms_IP:
+      description: "Network Monitoring Server IP"
+      type: "string"
+    nw_snmp_not_responding_ping_count:
+      description: "ping count for ping the Network device"
+      type: "string"
+    nw_snmp_not_responding_ping_recheck_limit:
+      description: "how many times needs to ping if the first ping is false on the Network device"
+      type: "string"
+    nw_snmp_not_responding_ping_sleep_interval:
+      description: "how much times needs sleep for each ping iterations on the Network device"
+      type: "string"
+    nw_snmp_not_responding_ping_success_packets_received:
+      description: "validate the success packets received while pinging the Network device"
+      type: "string"
+    nw_snmp_not_responding_ping_packets_loss_threshold_per:
+      description: "validate the success packets loss while pinging the Network device"
+      type: "string"
+  additionalProperties: false
+
+connections:
+  type: "object"
+  properties:
+    bolt_ssh_username_key:
+      description: "ST2 key that stores ssh username for bolt runs"
+      type: "string"
+    bolt_ssh_password_key:
+      description: "ST2 key that stores ssh password for bolt runs"
+      type: "string"
+    bolt_ssh_tmp_dir_key:
+      description: "ST2 key that stores ssh tmp dir for bolt runs"
+      type: "string"
+    bolt_winrm_username_key:
+      description: "ST2 key that stores winrm username for bolt runs"
+      type: "string"
+    bolt_winrm_password_key:
+      description: "ST2 key that stores winrm password for bolt runs"
+      type: "string"
+    bolt_winrm_port_key:
+      description: "ST2 key that stores winrm port for bolt runs"
+      type: "string"
+    bolt_winrm_scheme_key:
+      description: "ST2 key that stores winrm scheme for bolt runs"
+      type: "string"
+    bolt_winrm_ssl_key:
+      description: "ST2 key that stores winrm ssl for bolt runs"
+      type: "string"
+    bolt_winrm_verify_ssl_key:
+      description: "ST2 key that stores winrm verify_ssl for bolt runs"
+      type: "string"
+    ssh_username:
+      description: "Authentication user-id for WinRM connections"
+      type: "string"
+    ssh_password:
+      description: "The password of the specified user"
+      type: "string"
+      secret: true
+    ssh_tmp_dir:
+      description: "The tmp dir of system"
+      type: "string"
+      secret: true
+    ssh_solaris_username:
+      description: "Authentication user-id for solaris connections"
+      type: "string"
+    ssh_solaris_password:
+      description: "The password of the specified user"
+      type: "string"
+      secret: true
+    winrm_username:
+      description: "Authentication user-id for ssh connections"
+      type: "string"
+    winrm_password:
+      description: "The password of the specified user"
+      type: "string"
+      secret: true
+    winrm_port:
+      description: "Port used for WinRM connections"
+      type: "string"
+    winrm_scheme:
+      description: "Scheme to use in the WinRM URL. If using scheme “http” winrm port must be 5985"
+      type: "string"
+    winrm_verify_ssl:
+      type: "string"
+      description: "Whether or not to Verify SSL when using WinRM"      
+  additionalProperties: false

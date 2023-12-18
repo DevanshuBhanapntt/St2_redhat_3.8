@@ -1,0 +1,91 @@
+---
+name: sql_insert
+pack: ntt_monitoring
+description: "Inserts workflow results into the specified using stored procedures"
+# We moved this to a Python action for performance improvements
+# runner_type: orquesta
+# entry_point: workflows/sql_insert.yaml
+runner_type: "python-script"
+entry_point: sql_insert.py
+enabled: true
+parameters:
+  account_name:
+    type: string
+    description: "Customer Name"
+    required: false
+  account_service:
+    type: string
+    description: "Customer Account service name"
+    required: false
+  configuration_item:
+    type: string
+    description: "Configuration item"
+    required: false
+  database:
+    type: string
+    description: "Database to connect to"
+    required: true
+    default: "{{ st2kv.system.database.database_name }}"
+  drivername:
+    type: string
+    description: "The type of database that is being connected to"
+    required: true
+    default: "{{ st2kv.system.database.drivername }}"
+  end_timestamp:
+    type: string
+    description: "Timestamp of when the workflow ends executions"
+    required: false
+  host:
+    type: string
+    description: "Database server to connect to"
+    required: true
+    default: "{{ st2kv.system.database.host }}"
+  incident_id:
+    type: string
+    description: "ITSM incident number"
+    required: false
+  metric_data:
+    type: object
+    description: "Resulting data set from a finished workflow to be inserted into the metrics table"
+    required: true
+    default: {}
+  metric_procedure:
+    type: string
+    description: "Name of the procedure that inserts data into the metric table"
+    required: false
+    default: "{{ st2kv.system.database.metric_procedure }}"
+  metric_detail_procedure:
+    type: string
+    description: "Name of the procedure that inserts data into the metrics details table"
+    required: true
+    default: "{{ st2kv.system.database.metric_detail_procedure }}"
+  password:
+    type: string
+    description: "Password of the specified username to connect to the databae"
+    required: true
+    secret: true
+    default: "{{ st2kv.system.database.password | decrypt_kv }}"
+  port:
+    type: integer
+    description: "Port to connect to the database on"
+    required: true
+    default: 1433
+  process_data:
+    type: object
+    description: "Resulting data set from a finished workflow to be inserted into the tbl_am_process_data table"
+    required: true
+    default: {}
+  process_procedure:
+    type: string
+    description: "Name of the procedure that inserts data into the tbl_am_process_data table"
+    required: true
+    default: "{{ st2kv.system.database.process_procedure }}"
+  start_timestamp:
+    type: string
+    description: "Timestamp of when the workflow began execution"
+    required: false
+  username:
+    type: string
+    description: "Username for authentication to the database"
+    required: true
+    default: "{{ st2kv.system.database.username }}"

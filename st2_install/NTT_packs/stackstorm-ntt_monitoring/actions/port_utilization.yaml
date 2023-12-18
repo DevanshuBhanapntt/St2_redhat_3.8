@@ -1,0 +1,150 @@
+---
+name: port_utilization
+pack: ntt_monitoring
+description: "Monitors port utilization on a network device and compares utilization against a threshold value for further action"
+runner_type: orquesta
+entry_point: workflows/port_utilization.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  short_desc:
+    type: string
+    description: "short description name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  interface_descr:
+    type: string
+    description: "Name of the interface on the network device"
+    required: true
+  max_failures:
+    type: integer
+    description: "Total number of times the memory utilization may be found to be above the threshold"
+    required: true
+    default: 2
+  is_entuity:
+    type: string
+    description: "provide true if entuity server is used"
+    required: true
+    default: 'false'
+  nms_ip:
+    type: string
+    description: "entuity server name. which is the datastore key name holding comma seperated value of entuityip,interfaceip"
+    required: false
+  recheck_limit:
+    type: integer
+    description: "Number of times to re-ping the CI device if the first ping fails"
+    required: true
+    default: 5
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each threshold check"
+    required: true
+    default: 300
+  snmp_auth_key:
+    type: string
+    description: "Authorization passphrase, used in v3 commands"
+    required: false
+    secret: true
+  snmp_community:
+    type: string
+    description: "Community used to connect to the networking device"
+    required: true
+    default: "{{ st2kv.system.snmp_string }}"
+  snmp_ip:
+    type: string
+    description: "IP address of the network device to be tested"
+    required: true
+  snmp_oid:
+    type: string
+    description: "OID address of the network device to be tested"
+    required: true
+    default: '.1.3.6.1.2.1.1.1.0'
+  snmp_password:
+    type: string
+    description: "Password of the username used to login to the network device; used in v3 commands"
+    required: false
+    secret: true
+  snmp_port:
+    type: integer
+    description: "The port on the network device to be connected to; used in v3 commands"
+    required: false
+  snmp_privacy:
+    type: string
+    description: "Privacy protocol used on the network device; used in v3 commands"
+    required: false
+  snmp_priv_key:
+    type: string
+    description: "Private passphrase used to connect to the network device; used in v3 commands"
+    required: false
+    secret: true
+  snmp_protocol:
+    type: string
+    description: "Security protocol type used on the network device (md5, sha); used in v3 commands"
+    required: false
+  snmp_security:
+    type: string
+    description: "Security level to be used on the network device; used in v3 commands"
+    required: false
+    enum:
+      - authPriv
+      - authNoPriv
+      - noAuthNoPriv
+  snmp_username:
+    type: string
+    description: "Username used to login to the network device; used in v3 commands"
+    required: false
+  snmp_version:
+    type: string
+    description: "What version of SNMP is ran on the network device to be tested"
+    required: true
+    default: "{{ st2kv.system.snmp_version }}"
+  ssh_device_password:
+    type: string
+    description: "SSH password to be used on network device"
+    required: true
+    secret: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  ssh_device_username:
+    type: string
+    description: "SSH username to be used on network device"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  utilization_threshold:
+    type: integer
+    description: "Maximum acceptable port utilization on the network device"
+    required: false
+  rec_short_desc:
+    type: string
+    description: "Short description string to check for recurring incidents"
+    required: false
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string to check for recurring incidents"
+    required: false
+  configuration_item_name:
+    type: string
+    description: "ci field value from ticket"
+    required: false

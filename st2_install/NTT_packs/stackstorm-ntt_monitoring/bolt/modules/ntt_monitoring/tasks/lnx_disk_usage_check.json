@@ -1,0 +1,22 @@
+{
+  "description": "Runs a script on a remote server to retrieve disk utilization",
+  "implementations": [
+    {
+      "name": "lnx_disk_usage_check.sh"
+    }
+  ],
+  "parameters": {
+    "disk_name": {
+      "description": "disk name",
+      "type": "String[1]"
+    },
+    "linux_disk_yum_cache_clear": {
+      "description": "linux_disk_yum_cache_clear",
+      "type": "String[1]"
+    },
+    "linux_disk_clean_files": {
+      "description": "linux_disk_clean_files",
+      "type": "String[1]"
+    }	
+  }
+}

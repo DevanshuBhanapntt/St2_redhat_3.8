@@ -1,0 +1,109 @@
+---
+version: 1.0
+description: "Checks the values discovered during port utilization workflow against a given threshold"
+#platform: Network
+
+input:
+  - fail_check_counter
+  - reliability
+  - rxload
+  - threshold
+  - txload
+  - vendor
+
+vars:
+  - error_message: ""
+  - run_error: false
+  - threshold_passed_rxload: false
+  - threshold_passed_txload: false
+  - threshold_passed_reliability: true
+  - fail_check: 0
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - fail_check: "{{ ctx().fail_check }}"
+  - threshold_passed_rxload: "{{ ctx().threshold_passed_rxload }}"
+  - threshold_passed_txload: "{{ ctx().threshold_passed_txload }}"
+  - threshold_passed_reliability: "{{ ctx().threshold_passed_reliability }}"
+
+tasks:
+  rxload_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: true
+      fail_check_counter: "{{ ctx().fail_check_counter }}"
+      rerun_flag: false
+      threshold: "{{ ctx().threshold }}"
+      value: "{{ ctx().rxload }}"
+    next:
+      - when: "{{ succeeded() and result().result.threshold_passed }}"
+        publish:
+          - threshold_passed_rxload: true
+        do:
+          - txload_check
+      - when: "{{ succeeded() and not result().result.threshold_passed }}"
+        publish:
+          - fail_check: "{{ ctx().fail_check + 1}}"
+          - error_message: "{{ ctx().error_message }} | join('Rxload: {{ ctx().rxload }}% is above the threshold') }}"
+          - run_error: true
+        do:
+          - txload_check
+
+  txload_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: true
+      fail_check_counter: "{{ ctx().fail_check_counter }}"
+      rerun_flag: false
+      threshold: "{{ ctx().threshold }}"
+      value: "{{ ctx().rxload }}"
+    next:
+      - when: "{{ succeeded() and result().result.threshold_passed }}"
+        publish:
+          - threshold_passed_txload: true
+        do:
+          - reliability_dispatch
+      - when: "{{ succeeded() and not result().result.threshold_passed }}"
+        publish:
+          - error_message: "{{ ctx().error_message | join('\nTxload: {{ ctx().txload }}% is above the threshold') }}"
+          - fail_check: "{{ ctx().fail_check + 1}}"
+          - run_error: true
+        do:
+          - reliability_dispatch
+
+  reliability_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ ctx().vendor != 'Cisco' }}"
+        do:
+          - finish
+      - when: "{{ ctx().vendor == 'Cisco' }}"
+        do:
+          - reliability_check
+
+  reliability_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().reliability == 100 }}"
+        publish:
+          - threshold_passed_reliability: true
+          - run_error: false
+        do:
+          - finish
+      - when: "{{ succeeded() and ctx().reliability != 100 }}"
+        publish:
+          - threshold_passed_reliability: false
+          - error_message: "{{ ctx().error_message | join('\nReliability: {{ ctx().reliability }}% is not at 100') }}"
+          - run_error: true
+        do:
+          - finish
+
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop

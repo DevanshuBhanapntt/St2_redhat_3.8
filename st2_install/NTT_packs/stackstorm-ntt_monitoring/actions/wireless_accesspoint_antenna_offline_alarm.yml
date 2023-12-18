@@ -1,0 +1,96 @@
+---
+name: wireless_accesspoint_antenna_offline_alarm
+pack: ntt_monitoring
+description: action file for wireless accesspoint antenna offline alarm
+runner_type: orquesta
+entry_point: workflows/wireless_accesspoint_antenna_offline_alarm.yaml
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: '2'
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  username:
+    type: string
+    description: "Username to login to the remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "Password to login to the remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  script_name:
+    type: string
+    description: "c login script path"
+    required: false
+    default: "/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh"
+  script_options:
+    type: string
+    description: "c login script options"
+    required: false
+    default: "-autoenable"
+  radio_command:
+    type: string
+    description: "Command to fetch accesspoint antenna details"
+    required: false
+    default: "show advanced 802.11$type$ summary"
+  radio_start_index:
+    type: string
+    description: "Start index value of radio command"
+    required: false
+    default: "show advanced"
+  radio_end_index:
+    type: string
+    description: "End index value of command"
+    required: true
+    default: "(Cisco Controller) >logout"
+  configuration_item_name:
+    type: string
+    description: "Network device Name from CI field."
+    required: true
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string from sensor to find recurrence"
+    required: true
+  rec_short_desc:
+    type: string
+    description: "Short description string from sensor to find recurrence"
+    required: true
+  accesspoint_name:
+    type: string
+    description: "access point name from the description"
+    required: true

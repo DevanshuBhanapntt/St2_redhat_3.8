@@ -1,0 +1,60 @@
+---
+name: sql_insert_healthcheck
+pack: ntt_monitoring
+description: "Inserts workflow results into the specified using stored procedures"
+runner_type: "python-script"
+entry_point: sql_insert_healthcheck.py
+enabled: true
+parameters:
+  database:
+    type: string
+    description: "Database to connect to"
+    required: true
+    default: "{{ st2kv.system.database.HC.database_name }}"
+  drivername:
+    type: string
+    description: "The type of database that is being connected to"
+    required: true
+    default: "{{ st2kv.system.database.HC.drivername }}"  
+  host:
+    type: string
+    description: "Database server to connect to"
+    required: true
+    default: "{{ st2kv.system.database.HC.host }}"
+  username:
+    type: string
+    description: "Username for authentication to the database"
+    required: true
+    default: "{{ st2kv.system.database.HC.username }}"    
+  password:
+    type: string
+    description: "Password of the specified username to connect to the databae"
+    required: true
+    secret: true
+    default: "{{ st2kv.system.database.HC.password | decrypt_kv }}"
+  port:
+    type: integer
+    description: "Port to connect to the database on"
+    required: true
+    default: 1433 
+  HCAuditLog_procedure:
+    type: string
+    description: "Name of the procedure that inserts data into the Automated Health Check Audit Log"
+    required: true
+    default: "{{ st2kv.system.database.HC.AuditLog_procedure }}"  
+  HCMetric_procedure:
+    type: string
+    description: "Name of the procedure that inserts data into the Automated Health Check Metrics"
+    required: false
+    default: "{{ st2kv.system.database.HC.Metric_procedure }}"
+  HCAuditLog_data:
+    type: object
+    description: "Resulting data set from a finished workflow to be inserted into the  Automated Health Check Audit Log"
+    required: true
+    default: {}
+  HCMetric_data:
+    type: object
+    description: "Resulting data set from a finished workflow to be inserted into the  Automated Health Check Metrics"
+    required: true
+    default: {} 
+  

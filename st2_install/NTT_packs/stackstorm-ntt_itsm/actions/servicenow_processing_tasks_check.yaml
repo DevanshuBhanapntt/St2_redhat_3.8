@@ -1,0 +1,13 @@
+---
+description: "Get a list of processing ServiceNow taks from the kv store and check if they are still open"
+enabled: true
+runner_type: "python-script"
+entry_point: servicenow_processing_tasks_check.py
+name: servicenow_processing_tasks_check
+pack: ntt_itsm
+parameters:
+  inc_st2_key:
+    type: string
+    description: "ITSM task number to remove from the kv store"
+    required: true
+    default: "servicenow.tasks_processing"

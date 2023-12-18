@@ -1,0 +1,84 @@
+---
+name: bgp_peer_check
+pack: ntt_monitoring
+description: "BGP Peer check for the given network device"
+runner_type: orquesta
+entry_point: workflows/bgp_peer_check.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group of the incident"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: false
+  device_ip:
+    type: string
+    description: "Device ip from the incident description"
+    required: false
+  device_name:
+    type: string
+    description: "configuration item name"
+    required: false
+  peer_ip:
+    type: string
+    description: "Peer ip from the incident description"
+    required: false
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false 
+  short_desc:
+    type: string
+    description: "Short description from the incident"
+    required: false 
+  detailed_desc:
+    type: string
+    description: "Short description from the incident"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "Short description string to check for recurring incidents"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string to check for recurring incidents"
+    required: false 
+  ssh_password_key:
+    type: string
+    description: "ssh_password_key"
+    required: false
+  ssh_username_key:
+    type: string
+    description: "ssh_username_key"
+    required: false
+  ssh_tmp_dir_key:
+    type: string
+    description: "ssh_tmp_dir_key"
+    required: false
+  script_in_entuity:
+    type: boolean
+    description: "entuity enabled"
+    required: false 
+    default: false
+  interface_ip:
+    type: string
+    description: "entuity interface ip from sensor(datastore)"
+    required: false 
+    default: ""
+  nw_clogin_script_server_IP:
+    type: string
+    description: "entuity server ip from sensor(datastore)"
+    required: false 
+    default: ""

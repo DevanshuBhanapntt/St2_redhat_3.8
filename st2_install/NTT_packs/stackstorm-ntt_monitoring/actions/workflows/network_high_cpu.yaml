@@ -1,0 +1,557 @@
+---
+version: 1.0
+
+description: Check the cpu utilization of a network device(router and switch).  
+
+input:
+  - inc_number
+  - inc_sys_id
+  - assignment_group     
+  - customer_abbr
+  - customer_name
+  - short_desc
+  - detailed_desc  
+  - incident_state
+  - incident_open_at
+  - rec_short_desc
+  - rec_detailed_desc 
+  - configuration_item_name
+  - nw_cpu_threshold
+  - ci_address
+
+
+vars:
+  - consecutive_fails: 0
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""  
+  - run_error: false
+  - start_timestamp: ""  
+  - am_status: "Success"
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0 
+  - winrm_password_key: ""
+  - winrm_port_key: ""
+  - winrm_username_key: ""
+  - winrm_ssl_key: ""
+  - winrm_verify_ssl_key: ""
+  - device_login: false
+  - device_login_status_info: ""
+  - ping_output: ""
+  - ping_error: false 
+  - recheck_version: 0
+  - version: ""
+  - loop_count: 0
+  - work_notes: ""
+  - recheck_total: 0
+  - script_output: ""
+  - ping_result: false
+
+output:
+  # Append stdout to the end of the error message  
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}" 
+  - script_output: "{{ ctx().script_output }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides: {}       
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+          - device_username: "{{ result().result.device_username }}"
+          - device_password: "{{ result().result.device_password }}"
+          - nw_clogin_script_path: "{{ result().result.nw_clogin_script_path }}" 
+          - max_failures: 3       
+          - recheck_limit: 5
+        do:
+          - incident_move_inprogress
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - fail   
+        
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"     
+    next:
+      - when: "{{ succeeded() and ( ctx().incident_state == '2') }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and ( ctx().incident_state == '-5') }}"
+        do:
+          - get_recheck_total        
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  get_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - recheck_total: "{{ result().result }}"
+        do:
+          - get_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  get_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - consecutive_fails: "{{ result().result }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+    
+  ping_test:
+    action: core.local
+    input:       
+      cmd: "ping {{ ctx().ci_address }} -c 10"          
+    next:
+      - when: "{{ succeeded() }}"
+        publish:          
+          - ping_result: true
+          - ping_output: "{{ result().stdout }}"
+          - work_notes: |
+              The device {{ ctx().configuration_item_name }} is reachable.
+              
+              {{ ctx().ping_output }} 
+        do:
+          - update_ping_final_results        
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - ping_output: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error: true
+          - ping_error: true
+          - work_notes: |
+              The device {{ ctx().configuration_item_name }} is not reachable.
+              
+              {{ ctx().ping_output }}
+        do:
+          - itsm_escalate
+          
+  update_ping_final_results:
+    action: ntt_itsm.itsm_incident_update
+    input:         
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().work_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - run_error: true
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup 
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "network_high_cpu_rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().ci_address }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence and ctx().incident_state == '2' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results 
+      - when: "{{ succeeded() and result().result.Found_Recurrence and ctx().incident_state == '-5' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - check_device_cpu 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence and ctx().incident_state == '2' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results     
+      - when: "{{ succeeded() and not result().result.Found_Recurrence and ctx().incident_state == '-5' }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - check_device_cpu              
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup          
+          
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:         
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_device_cpu
+      - when: "{{ failed() }}"
+        publish:
+          - run_error: true
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup 
+          
+  check_device_cpu:
+    action: ntt_monitoring.network_high_cpu_script
+    input:
+      device: "{{ ctx().ci_address }}"
+      device_username: "{{ ctx().device_username }}"
+      device_password: "{{ ctx().device_password }}"
+      clogin_script_path: "{{ ctx().nw_clogin_script_path }}"
+      logfile: "{{ ctx().inc_number }}"
+      cpu_threshold: "{{ ctx().nw_cpu_threshold }}"
+      current_loop_count: "{{ ctx().recheck_total }}"
+      consecutive_fails: "{{ ctx().consecutive_fails }}"
+      max_loop: "{{ ctx().recheck_limit }}"
+      max_failures: "{{ ctx().max_failures }}"
+    next:
+      - when: "{{ succeeded() }}"   
+        publish:
+          - script_output: "{{ result().stdout }}      "    
+        do:
+          - decide_ticket_closure
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error: true   
+          - script_output: |
+              Unable to remote login to device to find the device model type.
+              
+              Please find below diagnostic output:
+              -----------------------------------------------
+              {{ ctx().error_message }}               
+        do:
+          - itsm_escalate
+
+  decide_ticket_closure:
+    action: core.noop
+    next:
+      - when: "{{ 'Completing' in ctx().script_output }}"
+        do:
+          - finish
+      - when: "{{ 'Escalating' in ctx().script_output }}"
+        publish:
+          - work_notes: |
+                Please find below the diagnostic output.
+                
+                {{ ctx().script_output }}
+        do:
+          - itsm_escalate
+      - when: "{{ 'Suspending' in ctx().script_output }}"
+        do:
+          - check_suspend
+
+  check_suspend:
+    action: core.noop
+    next:
+      - when: "{{ 'less than threshold' in ctx().script_output }}"     
+        do:
+          - add_recheck_total
+          - itsm_suspend
+      - when: "{{ 'is above threshold' in ctx().script_output }}"   
+        do:
+          - add_recheck_total
+          - add_consecutive_fails
+          - itsm_suspend          
+            
+  add_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  add_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup           
+  
+  itsm_suspend:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      pending: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation will monitor the ticket in next 10 minutes.
+             
+             {{ ctx().script_output }}
+      pending_mins: 10    
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_kv_var     
+      - when: "{{ failed() }}"
+        publish:
+          - run_error: true
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+          
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+              Automation failed due to recurring incidents.
+              
+              {{ ctx().script_output }}
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and not ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+              Automation is closing the task.
+              
+              {{ ctx().script_output }}             
+        do:
+          - itsm_close        
+      - when: "{{ failed() }}"
+        do:
+          - noop 
+          
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().work_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+          
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().work_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup       
+          
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:         
+          - get_end_timestamp      
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+
+          
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() }"
+        do:
+          - remove_recheck_total
+          - remove_max_loop
+          - insert_db
+      - when: "{{ failed() }}"
+        do:
+          - fail
+          
+  remove_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - fail
+          
+  remove_max_loop:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_sys_id }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - fail
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "network_high_cpu"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if not ctx().ping_result %}
+          The device {{ ctx().ci_address }} is not reachable.
+          {{ ctx().ping_output }}                
+          {% endif %}
+          {% if  ctx().run_error  %}
+          Automation is escalating this incident as it was unable to resolve it.
+          {{ ctx().error_message }}                 
+          {% endif %} 
+          {% if ctx().script_output %}
+          {{ ctx().found_recurrence_value }}                  
+          {% endif %}           
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().configuration_item_name }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "network_high_cpu"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Network"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ task('get_end_timestamp').end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().configuration_item_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and (ctx().run_error or  not ctx().ping_result  or not ctx().device_login ) }}"
+        do:
+          - fail

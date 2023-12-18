@@ -1,0 +1,10 @@
+---
+version: 2
+config:
+  # We need to have this defined in the inventory.yaml on the local StackStorm box
+  # so that the `local` transport uses the new private tmpdir for reading the
+  # other config variables from StackStorm. These variables are populated by
+  # running a task with the local transport. This task fails if this tmpdir is
+  # set to a place that is executable.
+  local:
+    tmpdir: /tmp

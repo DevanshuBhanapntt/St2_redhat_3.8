@@ -1,0 +1,99 @@
+---
+name: windows_service_check
+pack: ntt_monitoring
+description: Gather windows service information for the given VM
+runner_type: orquesta
+entry_point: workflows/windows_service_check.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Windows server to check the Memory for"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  dns_domain:
+    type: string
+    description: "DNS domain to append to the hostname"
+    required: true
+    default: "{{ st2kv.system.winrm.dns_domain }}"
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: "2"
+  service_name:
+    type: string
+    description: "Service name from ITSM to pass into the script check the status"
+    required: true
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false
+  configuration_item_name:
+    type: string
+    description: "configuration item name from ITSM to pass into the recurrence logic"
+    required: false
+  Win_service_Restricted:
+    description: "List of services restricted from automation"
+    type: array
+    required: false
+  Win_service_StatusCheck_Only:
+    description: "List of services should check only status"
+    type: array
+    required: false
+  Win_service_Restart:
+    description: "List of services should restart"
+    type: array
+    required: false
+  winrm_password_key:
+    type: string
+    description: "ST2 key that stores winrm password for bolt runs"
+    required: false
+  winrm_port_key:
+    type: integer
+    description: "ST2 key that stores winrm port for bolt runs"
+    required: false
+  winrm_username_key:
+    type: string
+    description: "ST2 key that stores winrm username for bolt runs"
+    required: false
+  winrm_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm ssl for bolt runs"
+    required: false
+  winrm_verify_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm verify_ssl for bolt runs"
+    required: false

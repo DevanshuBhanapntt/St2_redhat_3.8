@@ -1,0 +1,22 @@
+---
+
+description: "Traverse the configuration item list and get the detailed description"
+enabled: true
+runner_type: "python-script"
+entry_point: get_msg_exchange_ci.py
+name: get_msg_exchange_ci
+pack: ntt_monitoring
+
+parameters:
+  ci_items:
+    type: array
+    description: "List of configuration items from report"
+    required: true
+  ci_item_dict:
+    type: object
+    description: "Dictionary of configuration items and corresponding detailed description"
+    required: true
+  index:
+    type: integer
+    description: "index to look for"
+    required: true

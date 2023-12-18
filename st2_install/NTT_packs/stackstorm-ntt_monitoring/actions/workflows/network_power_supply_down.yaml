@@ -1,0 +1,421 @@
+---
+version: 1.0
+description: "Checking network device module alarm status"
+#platform: Network
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - incident_state
+  - short_desc
+  - script_name
+  - script_options
+  - username
+  - password
+  - version_command
+  - show_clock
+  - Power_Supply_cmd
+  - configuration_item_name
+  - rec_short_desc
+  - rec_detailed_desc
+
+
+vars:
+  - am_status: ""
+  - error_message: ""
+  - run_error: ""
+  - stdout_data: ""
+  - login_status: ""
+  - update_kv_result: ""
+  - start_timestamp: ""
+  - end_timestamp: ""
+  - ping_result: ""
+  - ping_count: '10'
+  - run_error_cmd_ping: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: ""
+
+output:
+  - assignment_group: "{{ ctx().assignment_group }}"
+  - ci_address: "{{ ctx().ci_address }}"
+  - customer_name: "{{ ctx().customer_name }}"
+  - customer_abbr: "{{ ctx().customer_abbr }}"
+  - detailed_desc: "{{ ctx().detailed_desc }}"
+  - inc_number: "{{ ctx().inc_number }}"
+  - inc_sys_id: "{{ ctx().inc_sys_id }}"
+  - incident_state: "{{ ctx().incident_state }}"
+  - short_desc: "{{ ctx().short_desc }}"
+  - login_status: "{{ ctx().login_status }}"
+  - am_status: "{{ ctx().am_status }}"
+  - error_message: "{{ ctx().error_message }}"
+  - run_error: "{{ ctx().run_error }}"
+  - update_kv_result: "{{ ctx().update_kv_result }}"
+
+tasks:
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state == '-5') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2', '-5']) }}"
+        publish:
+          - error_message: "Incident state is not open or pending"
+          - run_error: true
+          - end_timestamp: "{{ task('check_incident_state').end_timestamp ]]"
+        do:
+          - insert_db
+
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to automation(StackStorm). Work in progress"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "NW_PowerSupply_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - worknote: |
+                  Recurrence status: {{ ctx().found_recurrence_value }}
+        do:
+          - rec_itsm_update_results
+          - ping_test
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - worknote: "Automation found no recurring incidents"
+        do:
+          - rec_itsm_update_results
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}" 
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: core.local
+    input:
+      cmd: "ping -c {{ ctx().ping_count }} {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout }}"
+          - run_error_cmd_ping: false
+        do:
+          - itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_cmd_ping: true
+        do:
+          - itsm_update_results
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().ping_result }}"
+    next:
+      - when: "{{ completed() and not ctx().run_error_cmd_ping }}"
+        do:
+          - check_connectivity
+      - when: "{{ completed() and ctx().run_error_cmd_ping }}"
+        publish:
+          - stdout_data: "Server is unreachable to ping"
+        do:
+          - itsm_escalate
+
+  check_connectivity:
+    action: ntt_monitoring.check_switch_connectivity
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().result }}"
+        publish:
+          - login_status: "Login Successful"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - check_power_status
+      - when: "{{ succeeded() and not result().result }}"
+        publish:
+          - login_status: "Login Failed"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_escalate_login_failed
+      - when: "{{ failed() }}"
+        publish:
+          - login_status: "Fail"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+        do:
+          - itsm_escalate_login_failed
+
+  check_power_status:
+    action: ntt_monitoring.check_power_supply
+    input:
+      script_name: "{{ ctx().script_name }}"
+      script_options: "{{ ctx().script_options }}"
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+      version_command: "{{ ctx().version_command }}"
+      show_clock: "{{ ctx().show_clock }}"
+      Power_Supply_cmd: "{{ ctx().Power_Supply_cmd }}"
+    next:
+      - when: "{{ succeeded() and result().result }}"
+        publish:
+          - stdout_data: "\n{{ result().stdout }}"
+        do:
+          - finish
+      - when: "{{ succeeded() and not result().result }}"
+        publish:
+          - error_message: "Power Supply is down on the device"
+          - stdout_data: "\n{{ result().stdout }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() and result().result == 'NONE' }}"
+        publish:
+          - error_message: "No details found"
+          - stdout_data: "{{ result().stdout }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - stdout_data: "{{ result().stdout }}"
+          - error_message: "Failed to check the status of the Power Supply"
+        do:
+          - itsm_escalate
+
+  itsm_escalate_login_failed:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to login to the remote machine"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }} while escalate"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+              Automation is escalating this incident as {{ ctx().error_message }}. 
+              
+              Output is: {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+  
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ not ctx().found_recurrence }}"
+        do:
+          - itsm_close
+      - when: "{{ ctx().found_recurrence  }}"
+        do:
+          - itsm_escalate_recurrence
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+           Automation is resolving the incident.
+           
+           {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+        do:
+           - itsm_cleanup
+
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating this incident due to recurrence.
+             
+             {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "network_device_module_alarm"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc:
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "helix"
+        Job_Id: <% ctx(st2).action_execution_id %>
+        Module_Name: "network_power_supply_down"
+        Ref_No: "{{ ctx().inc_number }}"
+        # Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc | replace(':', ': ') }}"
+        Detail_Desc: "{{ ctx().detailed_desc | replace(':', ': ') }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail

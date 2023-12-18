@@ -1,0 +1,21 @@
+{
+  "description": "Verify that the cpu Queue length for the given VM ",
+  "implementations": [
+    {"name": "win_cpu_queue_length.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    
+      "dns_domain": {
+      "description": "DNS domain to append to the hostname",
+      "type": "String"
+    },
+	"cpu_type": {
+      "description": "Name of the type CPU to check on the server",
+      "type": "String[1]"
+    },
+    "cpu_name": {
+      "description": "Name of the CPU to check on the server",
+      "type": "String[1]"
+    }      
+  }
+}

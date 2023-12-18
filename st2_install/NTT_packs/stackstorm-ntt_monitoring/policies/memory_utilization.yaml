@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: memory_utilization.concurrency
+description: Limits the concurrent executions for ntt_monitoring.memory_utilization
+enabled: true
+resource_ref: ntt_monitoring.memory_utilization
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

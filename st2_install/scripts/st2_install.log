@@ -1,0 +1,1664 @@
+You can use "--user=<CHANGEME>" and "--password=<CHANGEME>" to override following default st2 credentials.
+Username: st2admin
+Password: Ch@ngeMe
+Sleeping for 10 seconds if you want to Ctrl + C now...
+Resorting to default username and password... You have an option to change password later!
+*** Detected Distro is Red Hat Enterprise Linux  ***
+*** Detected distro version 8 ***
+Running deployment script for st2 ...
+OS specific script cmd: bash ./st2_install_config.sh  --stable   --user=st2admin --password=****
+Starting prerequisite steps and package installs
+Installing Package GPG and Repo GPG Keys
+Disabling nodejs module
+Red Hat Enterprise Linux 8 for x86_64 - BaseOS   19 kB/s | 2.4 kB     00:00    
+Red Hat Enterprise Linux 8 for x86_64 - BaseOS   36 MB/s |  67 MB     00:01    
+Red Hat Enterprise Linux 8 for x86_64 - Supplem  18 kB/s | 2.1 kB     00:00    
+Red Hat Enterprise Linux 8 for x86_64 - AppStre  28 kB/s | 2.8 kB     00:00    
+Red Hat Enterprise Linux 8 for x86_64 - AppStre  38 MB/s |  64 MB     00:01    
+Red Hat CodeReady Linux Builder for RHEL 8 x86_  26 kB/s | 2.8 kB     00:00    
+Red Hat CodeReady Linux Builder for RHEL 8 x86_  19 MB/s |  10 MB     00:00    
+Red Hat Ansible Engine 2 for RHEL 8 x86_64 (RPM  22 kB/s | 2.4 kB     00:00    
+Dependencies resolved.
+================================================================================
+ Package           Architecture     Version             Repository         Size
+================================================================================
+Disabling modules:
+ nodejs                                                                        
+
+Transaction Summary
+================================================================================
+
+Complete!
+Setting up static repos
+Disabling epel nginx
+Installing and Setting up Nodejs 14 for Chatops
+Installing local packages
+Last metadata expiration check: 0:00:08 ago on Fri 01 Dec 2023 04:48:38 PM UTC.
+Package checkpolicy-2.9-1.el8.x86_64 is already installed.
+Package dejavu-fonts-common-2.35-7.el8.noarch is already installed.
+Package fontconfig-2.13.1-4.el8.x86_64 is already installed.
+Package fontpackages-filesystem-1.44-22.el8.noarch is already installed.
+Package libicu-60.3-2.el8_1.x86_64 is already installed.
+Package libXau-1.0.9-3.el8.x86_64 is already installed.
+Package libxcb-1.13.1-1.el8.x86_64 is already installed.
+Package net-tools-2.0-0.52.20160912git.el8.x86_64 is already installed.
+Package openssl-1:1.1.1k-9.el8_7.x86_64 is already installed.
+Package openssl-libs-1:1.1.1k-9.el8_7.x86_64 is already installed.
+Package pcre2-10.32-3.el8_6.x86_64 is already installed.
+Package python36-3.6.8-38.module+el8.5.0+12207+5c5719bc.x86_64 is already installed.
+Package unzip-6.0-46.el8.x86_64 is already installed.
+Package zip-3.0-23.el8.x86_64 is already installed.
+Dependencies resolved.
+===========================================================================================================================
+ Package                        Arch    Version                                   Repository                           Size
+===========================================================================================================================
+Installing:
+ apr                            x86_64  1.6.3-12.el8                              @commandline                        130 k
+ apr-util                       x86_64  1.6.1-6.el8                               @commandline                        105 k
+ apr-util-bdb                   x86_64  1.6.1-6.el8                               @commandline                         25 k
+ apr-util-openssl               x86_64  1.6.1-6.el8                               @commandline                         27 k
+ crudini                        noarch  0.9.3-1.el8                               @commandline                         29 k
+ dejavu-sans-fonts              noarch  2.35-7.el8                                @commandline                        1.5 M
+ dwz                            x86_64  0.12-10.el8                               @commandline                        109 k
+ efi-srpm-macros                noarch  3-3.el8                                   @commandline                         22 k
+ epel-release                   noarch  8-19.el8                                  @commandline                         25 k
+ erlang                         x86_64  25.3.2.7-1.el8                            @commandline                         20 M
+ gd                             x86_64  2.2.5-7.el8                               @commandline                        144 k
+ ghc-srpm-macros                noarch  1.4.2-7.el8                               @commandline                        9.4 k
+ git                            x86_64  2.31.1-2.el8                              @commandline                        161 k
+ git-core                       x86_64  2.31.1-2.el8                              @commandline                        4.7 M
+ git-core-doc                   noarch  2.31.1-2.el8                              @commandline                        2.6 M
+ go-srpm-macros                 noarch  2-17.el8                                  @commandline                         13 k
+ httpd-tools                    x86_64  2.4.37-47.module+el8.6.0+15654+427eba2e.2 @commandline                        108 k
+ jbigkit-libs                   x86_64  2.1-14.el8                                @commandline                         55 k
+ keyutils-libs-devel            x86_64  1.5.10-9.el8                              @commandline                         48 k
+ krb5-devel                     x86_64  1.18.2-14.el8                             @commandline                        560 k
+ libXpm                         x86_64  3.5.12-8.el8                              @commandline                         58 k
+ libcom_err-devel               x86_64  1.45.6-4.el8                              @commandline                         39 k
+ libffi-devel                   x86_64  3.1-23.el8                                @commandline                         29 k
+ libjpeg-turbo                  x86_64  1.5.3-12.el8                              @commandline                        157 k
+ libkadm5                       x86_64  1.18.2-14.el8                             @commandline                        187 k
+ libselinux-devel               x86_64  2.9-5.el8                                 @commandline                        200 k
+ libsepol-devel                 x86_64  2.9-3.el8                                 @commandline                         87 k
+ libtiff                        x86_64  4.0.9-21.el8                              @commandline                        188 k
+ libverto-devel                 x86_64  0.3.0-5.el8                               @commandline                         18 k
+ libwebp                        x86_64  1.0.0-5.el8                               @commandline                        273 k
+ make                           x86_64  1:4.2.1-11.el8                            @commandline                        498 k
+ mongodb-org                    x86_64  4.0.28-1.el8                              @commandline                         11 k
+ mongodb-org-mongos             x86_64  4.0.28-1.el8                              @commandline                        9.7 M
+ mongodb-org-server             x86_64  4.0.28-1.el8                              @commandline                         17 M
+ mongodb-org-shell              x86_64  4.0.28-1.el8                              @commandline                         10 M
+ mongodb-org-tools              x86_64  4.0.28-1.el8                              @commandline                         39 M
+ nginx                          x86_64  1:1.22.1-1.el8.ngx                        @commandline                        828 k
+ nginx-debuginfo                x86_64  1:1.22.1-1.el8.ngx                        @commandline                        2.3 M
+ nginx-module-image-filter      x86_64  1:1.22.1-1.el8.ngx                        @commandline                         31 k
+ nginx-module-njs               x86_64  1:1.22.1+0.7.7-1.el8.ngx                  @commandline                        725 k
+ nginx-module-perl              x86_64  1:1.22.1-1.el8.ngx                        @commandline                         47 k
+ nginx-module-xslt              x86_64  1:1.22.1-1.el8.ngx                        @commandline                         28 k
+ nodejs                         x86_64  2:14.20.0-1nodesource                     @commandline                         33 M
+ ocaml-srpm-macros              noarch  5-4.el8                                   @commandline                        9.5 k
+ openblas-srpm-macros           noarch  2-2.el8                                   @commandline                        8.0 k
+ openssl-devel                  x86_64  1:1.1.1k-9.el8_7                          @commandline                        2.3 M
+ pcre2-devel                    x86_64  10.32-3.el8_6                             @commandline                        605 k
+ pcre2-utf16                    x86_64  10.32-3.el8_6                             @commandline                        229 k
+ pcre2-utf32                    x86_64  10.32-3.el8_6                             @commandline                        220 k
+ perl                           x86_64  4:5.26.3-421.el8                          @commandline                         73 k
+ perl-Algorithm-Diff            noarch  1.1903-9.el8                              @commandline                         52 k
+ perl-Archive-Tar               noarch  2.30-1.el8                                @commandline                         79 k
+ perl-Archive-Zip               noarch  1.60-3.el8                                @commandline                        108 k
+ perl-Attribute-Handlers        noarch  0.99-421.el8                              @commandline                         89 k
+ perl-B-Debug                   noarch  1.26-2.el8                                @commandline                         26 k
+ perl-CPAN                      noarch  2.18-397.el8                              @commandline                        554 k
+ perl-CPAN-Meta                 noarch  2.150010-396.el8                          @commandline                        191 k
+ perl-CPAN-Meta-Requirements    noarch  2.140-396.el8                             @commandline                         37 k
+ perl-CPAN-Meta-YAML            noarch  0.018-397.el8                             @commandline                         34 k
+ perl-Carp                      noarch  1.42-396.el8                              @commandline                         30 k
+ perl-Compress-Bzip2            x86_64  2.26-6.el8                                @commandline                         72 k
+ perl-Compress-Raw-Bzip2        x86_64  2.081-1.el8                               @commandline                         41 k
+ perl-Compress-Raw-Zlib         x86_64  2.081-1.el8                               @commandline                         68 k
+ perl-Config-Perl-V             noarch  0.30-1.el8                                @commandline                         22 k
+ perl-DB_File                   x86_64  1.842-1.el8                               @commandline                         83 k
+ perl-Data-Dumper               x86_64  2.167-399.el8                             @commandline                         58 k
+ perl-Data-OptList              noarch  0.110-6.el8                               @commandline                         31 k
+ perl-Data-Section              noarch  0.200007-3.el8                            @commandline                         30 k
+ perl-Devel-PPPort              x86_64  3.36-5.el8                                @commandline                        118 k
+ perl-Devel-Peek                x86_64  1.26-421.el8                              @commandline                         94 k
+ perl-Devel-SelfStubber         noarch  1.06-421.el8                              @commandline                         76 k
+ perl-Devel-Size                x86_64  0.81-2.el8                                @commandline                         34 k
+ perl-Digest                    noarch  1.17-395.el8                              @commandline                         27 k
+ perl-Digest-MD5                x86_64  2.55-396.el8                              @commandline                         37 k
+ perl-Digest-SHA                x86_64  1:6.02-1.el8                              @commandline                         66 k
+ perl-Encode                    x86_64  4:2.97-3.el8                              @commandline                        1.5 M
+ perl-Encode-Locale             noarch  1.05-10.module+el8.3.0+6498+9eecfe51      @commandline                         22 k
+ perl-Encode-devel              x86_64  4:2.97-3.el8                              @commandline                         39 k
+ perl-Env                       noarch  1.04-395.el8                              @commandline                         21 k
+ perl-Errno                     x86_64  1.28-421.el8                              @commandline                         76 k
+ perl-Error                     noarch  1:0.17025-2.el8                           @commandline                         46 k
+ perl-Exporter                  noarch  5.72-396.el8                              @commandline                         34 k
+ perl-ExtUtils-CBuilder         noarch  1:0.280230-2.el8                          @commandline                         48 k
+ perl-ExtUtils-Command          noarch  1:7.34-1.el8                              @commandline                         19 k
+ perl-ExtUtils-Embed            noarch  1.34-421.el8                              @commandline                         79 k
+ perl-ExtUtils-Install          noarch  2.14-4.el8                                @commandline                         46 k
+ perl-ExtUtils-MM-Utils         noarch  1:7.34-1.el8                              @commandline                         17 k
+ perl-ExtUtils-MakeMaker        noarch  1:7.34-1.el8                              @commandline                        301 k
+ perl-ExtUtils-Manifest         noarch  1.70-395.el8                              @commandline                         37 k
+ perl-ExtUtils-Miniperl         noarch  1.06-421.el8                              @commandline                         77 k
+ perl-ExtUtils-ParseXS          noarch  1:3.35-2.el8                              @commandline                         83 k
+ perl-File-Fetch                noarch  0.56-2.el8                                @commandline                         33 k
+ perl-File-HomeDir              noarch  1.002-4.el8                               @commandline                         62 k
+ perl-File-Path                 noarch  2.15-2.el8                                @commandline                         38 k
+ perl-File-Temp                 noarch  0.230.600-1.el8                           @commandline                         63 k
+ perl-File-Which                noarch  1.22-2.el8                                @commandline                         24 k
+ perl-Filter                    x86_64  2:1.58-2.el8                              @commandline                         82 k
+ perl-Filter-Simple             noarch  0.94-2.el8                                @commandline                         29 k
+ perl-Getopt-Long               noarch  1:2.50-4.el8                              @commandline                         63 k
+ perl-Git                       noarch  2.31.1-2.el8                              @commandline                         78 k
+ perl-HTTP-Tiny                 noarch  0.074-1.el8                               @commandline                         58 k
+ perl-IO                        x86_64  1.38-421.el8                              @commandline                        142 k
+ perl-IO-Compress               noarch  2.081-1.el8                               @commandline                        258 k
+ perl-IO-Socket-IP              noarch  0.39-5.el8                                @commandline                         47 k
+ perl-IO-Socket-SSL             noarch  2.066-4.module+el8.3.0+6446+594cad75      @commandline                        298 k
+ perl-IO-Zlib                   noarch  1:1.10-421.el8                            @commandline                         81 k
+ perl-IPC-Cmd                   noarch  2:1.02-1.el8                              @commandline                         43 k
+ perl-IPC-SysV                  x86_64  2.07-397.el8                              @commandline                         43 k
+ perl-IPC-System-Simple         noarch  1.25-17.el8                               @commandline                         43 k
+ perl-JSON-PP                   noarch  1:2.97.001-3.el8                          @commandline                         68 k
+ perl-Locale-Codes              noarch  3.57-1.el8                                @commandline                        310 k
+ perl-Locale-Maketext           noarch  1.28-396.el8                              @commandline                         99 k
+ perl-Locale-Maketext-Simple    noarch  1:0.21-421.el8                            @commandline                         79 k
+ perl-MIME-Base64               x86_64  3.15-396.el8                              @commandline                         31 k
+ perl-MRO-Compat                noarch  0.13-4.el8                                @commandline                         24 k
+ perl-Math-BigInt               noarch  1:1.9998.11-7.el8                         @commandline                        196 k
+ perl-Math-BigInt-FastCalc      x86_64  0.500.600-6.el8                           @commandline                         27 k
+ perl-Math-BigRat               noarch  0.2614-1.el8                              @commandline                         40 k
+ perl-Math-Complex              noarch  1.59-421.el8                              @commandline                        109 k
+ perl-Memoize                   noarch  1.03-421.el8                              @commandline                        119 k
+ perl-Module-Build              noarch  2:0.42.24-5.el8                           @commandline                        273 k
+ perl-Module-CoreList           noarch  1:5.20181130-1.el8                        @commandline                         87 k
+ perl-Module-CoreList-tools     noarch  1:5.20181130-1.el8                        @commandline                         22 k
+ perl-Module-Load               noarch  1:0.32-395.el8                            @commandline                         19 k
+ perl-Module-Load-Conditional   noarch  0.68-395.el8                              @commandline                         24 k
+ perl-Module-Loaded             noarch  1:0.08-421.el8                            @commandline                         75 k
+ perl-Module-Metadata           noarch  1.000033-395.el8                          @commandline                         45 k
+ perl-Mozilla-CA                noarch  20160104-7.module+el8.3.0+6498+9eecfe51   @commandline                         15 k
+ perl-Net-Ping                  noarch  2.55-421.el8                              @commandline                        102 k
+ perl-Net-SSLeay                x86_64  1.88-2.module+el8.6.0+13392+f0897f98      @commandline                        379 k
+ perl-Package-Generator         noarch  1.106-11.el8                              @commandline                         27 k
+ perl-Params-Check              noarch  1:0.38-395.el8                            @commandline                         24 k
+ perl-Params-Util               x86_64  1.07-22.el8                               @commandline                         44 k
+ perl-PathTools                 x86_64  3.74-1.el8                                @commandline                         90 k
+ perl-Perl-OSType               noarch  1.010-396.el8                             @commandline                         29 k
+ perl-PerlIO-via-QuotedPrint    noarch  0.08-395.el8                              @commandline                         14 k
+ perl-Pod-Checker               noarch  4:1.73-395.el8                            @commandline                         33 k
+ perl-Pod-Escapes               noarch  1:1.07-395.el8                            @commandline                         20 k
+ perl-Pod-Html                  noarch  1.22.02-421.el8                           @commandline                         88 k
+ perl-Pod-Parser                noarch  1.63-396.el8                              @commandline                        108 k
+ perl-Pod-Perldoc               noarch  3.28-396.el8                              @commandline                         88 k
+ perl-Pod-Simple                noarch  1:3.35-395.el8                            @commandline                        213 k
+ perl-Pod-Usage                 noarch  4:1.69-395.el8                            @commandline                         34 k
+ perl-Scalar-List-Utils         x86_64  3:1.49-2.el8                              @commandline                         68 k
+ perl-SelfLoader                noarch  1.23-421.el8                              @commandline                         83 k
+ perl-Socket                    x86_64  4:2.027-3.el8                             @commandline                         59 k
+ perl-Software-License          noarch  0.103013-2.el8                            @commandline                        137 k
+ perl-Storable                  x86_64  1:3.11-3.el8                              @commandline                         98 k
+ perl-Sub-Exporter              noarch  0.987-15.el8                              @commandline                         73 k
+ perl-Sub-Install               noarch  0.928-14.el8                              @commandline                         27 k
+ perl-Sys-Syslog                x86_64  0.35-397.el8                              @commandline                         50 k
+ perl-Term-ANSIColor            noarch  4.06-396.el8                              @commandline                         46 k
+ perl-Term-Cap                  noarch  1.17-395.el8                              @commandline                         23 k
+ perl-TermReadKey               x86_64  2.37-7.el8                                @commandline                         40 k
+ perl-Test                      noarch  1.30-421.el8                              @commandline                         90 k
+ perl-Test-Harness              noarch  1:3.42-1.el8                              @commandline                        279 k
+ perl-Test-Simple               noarch  1:1.302135-1.el8                          @commandline                        516 k
+ perl-Text-Balanced             noarch  2.03-395.el8                              @commandline                         58 k
+ perl-Text-Diff                 noarch  1.45-2.el8                                @commandline                         45 k
+ perl-Text-Glob                 noarch  0.11-4.el8                                @commandline                         17 k
+ perl-Text-ParseWords           noarch  3.30-395.el8                              @commandline                         18 k
+ perl-Text-Tabs+Wrap            noarch  2013.0523-395.el8                         @commandline                         24 k
+ perl-Text-Template             noarch  1.51-1.el8                                @commandline                         64 k
+ perl-Thread-Queue              noarch  3.13-1.el8                                @commandline                         24 k
+ perl-Time-HiRes                x86_64  4:1.9758-2.el8                            @commandline                         61 k
+ perl-Time-Local                noarch  1:1.280-1.el8                             @commandline                         34 k
+ perl-Time-Piece                x86_64  1.31-421.el8                              @commandline                         98 k
+ perl-URI                       noarch  1.73-3.el8                                @commandline                        116 k
+ perl-Unicode-Collate           x86_64  1.25-2.el8                                @commandline                        686 k
+ perl-Unicode-Normalize         x86_64  1.25-396.el8                              @commandline                         82 k
+ perl-autodie                   noarch  2.29-396.el8                              @commandline                         98 k
+ perl-bignum                    noarch  0.49-2.el8                                @commandline                         44 k
+ perl-constant                  noarch  1.33-396.el8                              @commandline                         25 k
+ perl-devel                     x86_64  4:5.26.3-421.el8                          @commandline                        599 k
+ perl-encoding                  x86_64  4:2.22-3.el8                              @commandline                         68 k
+ perl-experimental              noarch  0.019-2.el8                               @commandline                         24 k
+ perl-inc-latest                noarch  2:0.500-9.el8                             @commandline                         25 k
+ perl-interpreter               x86_64  4:5.26.3-421.el8                          @commandline                        6.3 M
+ perl-libnet                    noarch  3.11-3.el8                                @commandline                        121 k
+ perl-libnetcfg                 noarch  4:5.26.3-421.el8                          @commandline                         78 k
+ perl-libs                      x86_64  4:5.26.3-421.el8                          @commandline                        1.6 M
+ perl-local-lib                 noarch  2.000024-2.el8                            @commandline                         74 k
+ perl-macros                    x86_64  4:5.26.3-421.el8                          @commandline                         72 k
+ perl-open                      noarch  1.11-421.el8                              @commandline                         78 k
+ perl-parent                    noarch  1:0.237-1.el8                             @commandline                         20 k
+ perl-perlfaq                   noarch  5.20180605-1.el8                          @commandline                        386 k
+ perl-podlators                 noarch  4.11-1.el8                                @commandline                        118 k
+ perl-srpm-macros               noarch  1-25.el8                                  @commandline                         11 k
+ perl-threads                   x86_64  1:2.21-2.el8                              @commandline                         61 k
+ perl-threads-shared            x86_64  1.58-2.el8                                @commandline                         48 k
+ perl-utils                     noarch  5.26.3-421.el8                            @commandline                        129 k
+ perl-version                   x86_64  6:0.99.24-1.el8                           @commandline                         67 k
+ python-rpm-macros              noarch  3-41.el8                                  @commandline                         15 k
+ python-srpm-macros             noarch  3-41.el8                                  @commandline                         15 k
+ python3-pyparsing              noarch  2.1.10-7.el8                              @commandline                        142 k
+ python3-rpm-macros             noarch  3-41.el8                                  @commandline                         14 k
+ python38                       x86_64  3.8.12-1.module+el8.6.0+12642+c3710b74    @commandline                         80 k
+ python38-devel                 x86_64  3.8.12-1.module+el8.6.0+12642+c3710b74    @commandline                        276 k
+ python38-libs                  x86_64  3.8.12-1.module+el8.6.0+12642+c3710b74    @commandline                        8.3 M
+ python38-pip                   noarch  19.3.1-5.module+el8.6.0+13002+70cfc74a    @commandline                        1.8 M
+ python38-pip-wheel             noarch  19.3.1-5.module+el8.6.0+13002+70cfc74a    @commandline                        1.0 M
+ python38-setuptools            noarch  41.6.0-5.module+el8.5.0+12205+a865257a    @commandline                        668 k
+ python38-setuptools-wheel      noarch  41.6.0-5.module+el8.5.0+12205+a865257a    @commandline                        304 k
+ qt5-srpm-macros                noarch  5.15.2-1.el8                              @commandline                         11 k
+ rabbitmq-server                noarch  3.12.8-1.el8                              @commandline                         17 M
+ redhat-rpm-config              noarch  131-1.el8                                 @commandline                         90 k
+ redis                          x86_64  5.0.3-5.module+el8.4.0+12927+b9845322     @commandline                        927 k
+ rust-srpm-macros               noarch  5-2.el8                                   @commandline                        9.3 k
+ st2                            x86_64  3.8.0-2                                   @commandline                         28 M
+ st2chatops                     x86_64  3.8.0-1                                   @commandline                         34 M
+ st2web                         x86_64  3.8.0-1                                   @commandline                        2.4 M
+ systemtap-sdt-devel            x86_64  4.6-4.el8                                 @commandline                         86 k
+ zlib-devel                     x86_64  1.2.11-21.el8_7                           @commandline                         57 k
+Downgrading:
+ audit                          x86_64  3.0.7-2.el8.2                             rhel-8-for-x86_64-baseos-rhui-rpms  263 k
+ audit-libs                     x86_64  3.0.7-2.el8.2                             rhel-8-for-x86_64-baseos-rhui-rpms  123 k
+ curl                           x86_64  7.61.1-22.el8_6.4                         @commandline                        352 k
+ dnf-plugins-core               noarch  4.0.21-11.el8                             rhel-8-for-x86_64-baseos-rhui-rpms   71 k
+ e2fsprogs                      x86_64  1.45.6-4.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  1.0 M
+ e2fsprogs-libs                 x86_64  1.45.6-4.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  233 k
+ emacs-filesystem               noarch  1:26.1-7.el8                              @commandline                         70 k
+ glibc                          x86_64  2.28-225.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  2.2 M
+ glibc-common                   x86_64  2.28-225.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  1.0 M
+ glibc-gconv-extra              x86_64  2.28-225.el8                              @commandline                        1.5 M
+ glibc-langpack-en              x86_64  2.28-225.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  827 k
+ krb5-libs                      x86_64  1.18.2-14.el8                             rhel-8-for-x86_64-baseos-rhui-rpms  840 k
+ libX11                         x86_64  1.6.8-5.el8                               @commandline                        611 k
+ libX11-common                  noarch  1.6.8-5.el8                               @commandline                        158 k
+ libcom_err                     x86_64  1.45.6-4.el8                              @commandline                         49 k
+ libcurl                        x86_64  7.61.1-22.el8_6.4                         @commandline                        302 k
+ libffi                         x86_64  3.1-23.el8                                @commandline                         37 k
+ libselinux                     x86_64  2.9-5.el8                                 rhel-8-for-x86_64-baseos-rhui-rpms  165 k
+ libselinux-utils               x86_64  2.9-5.el8                                 rhel-8-for-x86_64-baseos-rhui-rpms  243 k
+ libsemanage                    x86_64  2.9-8.el8                                 @commandline                        168 k
+ libss                          x86_64  1.45.6-4.el8                              rhel-8-for-x86_64-baseos-rhui-rpms   54 k
+ libverto                       x86_64  0.3.0-5.el8                               rhel-8-for-x86_64-baseos-rhui-rpms   24 k
+ platform-python-pip            noarch  9.0.3-22.el8                              @commandline                        1.6 M
+ platform-python-setuptools     noarch  39.2.0-6.el8                              rhel-8-for-x86_64-baseos-rhui-rpms  632 k
+ policycoreutils                x86_64  2.9-16.el8                                @commandline                        373 k
+ policycoreutils-python-utils   noarch  2.9-16.el8                                @commandline                        252 k
+ python3-audit                  x86_64  3.0.7-2.el8.2                             @commandline                         87 k
+ python3-dnf-plugins-core       noarch  4.0.21-11.el8                             rhel-8-for-x86_64-baseos-rhui-rpms  240 k
+ python3-libselinux             x86_64  2.9-5.el8                                 rhel-8-for-x86_64-baseos-rhui-rpms  283 k
+ python3-libsemanage            x86_64  2.9-8.el8                                 @commandline                        128 k
+ python3-pip                    noarch  9.0.3-22.el8                              @commandline                         20 k
+ python3-policycoreutils        noarch  2.9-16.el8                                @commandline                        2.2 M
+ python3-setools                x86_64  4.3.0-3.el8                               @commandline                        624 k
+ python3-setuptools             noarch  39.2.0-6.el8                              @commandline                        163 k
+ yum-utils                      noarch  4.0.21-11.el8                             @commandline                         73 k
+ zlib                           x86_64  1.2.11-21.el8_7                           @commandline                        102 k
+Enabling module streams:
+ httpd                                  2.4                                                                                
+ perl                                   5.26                                                                               
+ perl-IO-Socket-SSL                     2.066                                                                              
+ perl-libwww-perl                       6.34                                                                               
+ python38                               3.8                                                                                
+ redis                                  5                                                                                  
+
+Transaction Summary
+===========================================================================================================================
+Install    213 Packages
+Downgrade   36 Packages
+
+Total size: 282 M
+Total download size: 8.1 M
+Downloading Packages:
+(1/16): libverto-0.3.0-5.el8.x86_64.rpm         196 kB/s |  24 kB     00:00    
+(2/16): libselinux-utils-2.9-5.el8.x86_64.rpm   1.5 MB/s | 243 kB     00:00    
+(3/16): libselinux-2.9-5.el8.x86_64.rpm         915 kB/s | 165 kB     00:00    
+(4/16): python3-libselinux-2.9-5.el8.x86_64.rpm 2.0 MB/s | 283 kB     00:00    
+(5/16): platform-python-setuptools-39.2.0-6.el8 3.1 MB/s | 632 kB     00:00    
+(6/16): krb5-libs-1.18.2-14.el8.x86_64.rpm      4.8 MB/s | 840 kB     00:00    
+(7/16): audit-libs-3.0.7-2.el8.2.x86_64.rpm     996 kB/s | 123 kB     00:00    
+(8/16): libss-1.45.6-4.el8.x86_64.rpm           444 kB/s |  54 kB     00:00    
+(9/16): python3-dnf-plugins-core-4.0.21-11.el8. 1.9 MB/s | 240 kB     00:00    
+(10/16): audit-3.0.7-2.el8.2.x86_64.rpm         1.9 MB/s | 263 kB     00:00    
+(11/16): dnf-plugins-core-4.0.21-11.el8.noarch. 114 kB/s |  71 kB     00:00    
+(12/16): e2fsprogs-libs-1.45.6-4.el8.x86_64.rpm 389 kB/s | 233 kB     00:00    
+(13/16): e2fsprogs-1.45.6-4.el8.x86_64.rpm      1.5 MB/s | 1.0 MB     00:00    
+(14/16): glibc-langpack-en-2.28-225.el8.x86_64. 4.5 MB/s | 827 kB     00:00    
+(15/16): glibc-common-2.28-225.el8.x86_64.rpm   4.6 MB/s | 1.0 MB     00:00    
+(16/16): glibc-2.28-225.el8.x86_64.rpm          9.2 MB/s | 2.2 MB     00:00    
+--------------------------------------------------------------------------------
+Total                                           5.5 MB/s | 8.1 MB     00:01     
+Running transaction check
+Transaction check succeeded.
+Running transaction test
+Transaction test succeeded.
+Running transaction
+  Preparing        :                                                        1/1 
+  Running scriptlet: glibc-langpack-en-2.28-225.el8.x86_64                  1/1 
+  Downgrading      : glibc-langpack-en-2.28-225.el8.x86_64                1/285 
+  Running scriptlet: glibc-2.28-225.el8.x86_64                            2/285 
+  Downgrading      : glibc-2.28-225.el8.x86_64                            2/285 
+  Running scriptlet: glibc-2.28-225.el8.x86_64                            2/285 
+  Downgrading      : libselinux-2.9-5.el8.x86_64                          3/285 
+  Running scriptlet: libselinux-2.9-5.el8.x86_64                          3/285 
+  Downgrading      : glibc-common-2.28-225.el8.x86_64                     4/285 
+  Downgrading      : glibc-gconv-extra-2.28-225.el8.x86_64                5/285 
+  Running scriptlet: glibc-gconv-extra-2.28-225.el8.x86_64                5/285 
+  Downgrading      : zlib-1.2.11-21.el8_7.x86_64                          6/285 
+  Installing       : perl-Digest-1.17-395.el8.noarch                      7/285 
+  Installing       : perl-Digest-MD5-2.55-396.el8.x86_64                  8/285 
+  Installing       : perl-Data-Dumper-2.167-399.el8.x86_64                9/285 
+  Installing       : perl-libnet-3.11-3.el8.noarch                       10/285 
+  Installing       : perl-Net-SSLeay-1.88-2.module+el8.6.0+13392+f089    11/285 
+  Installing       : perl-URI-1.73-3.el8.noarch                          12/285 
+  Installing       : perl-Pod-Escapes-1:1.07-395.el8.noarch              13/285 
+  Installing       : perl-Mozilla-CA-20160104-7.module+el8.3.0+6498+9    14/285 
+  Installing       : perl-IO-Socket-IP-0.39-5.el8.noarch                 15/285 
+  Installing       : perl-Time-Local-1:1.280-1.el8.noarch                16/285 
+  Installing       : perl-IO-Socket-SSL-2.066-4.module+el8.3.0+6446+5    17/285 
+  Installing       : perl-File-Temp-0.230.600-1.el8.noarch               18/285 
+  Installing       : perl-Term-ANSIColor-4.06-396.el8.noarch             19/285 
+  Installing       : perl-Term-Cap-1.17-395.el8.noarch                   20/285 
+  Installing       : perl-Pod-Simple-1:3.35-395.el8.noarch               21/285 
+  Installing       : perl-HTTP-Tiny-0.074-1.el8.noarch                   22/285 
+  Installing       : perl-podlators-4.11-1.el8.noarch                    23/285 
+  Installing       : perl-Pod-Perldoc-3.28-396.el8.noarch                24/285 
+  Installing       : perl-Text-ParseWords-3.30-395.el8.noarch            25/285 
+  Installing       : perl-Pod-Usage-4:1.69-395.el8.noarch                26/285 
+  Installing       : perl-MIME-Base64-3.15-396.el8.x86_64                27/285 
+  Installing       : perl-Storable-1:3.11-3.el8.x86_64                   28/285 
+  Installing       : perl-Getopt-Long-1:2.50-4.el8.noarch                29/285 
+  Installing       : perl-Errno-1.28-421.el8.x86_64                      30/285 
+  Installing       : perl-Socket-4:2.027-3.el8.x86_64                    31/285 
+  Installing       : perl-Encode-4:2.97-3.el8.x86_64                     32/285 
+  Installing       : perl-constant-1.33-396.el8.noarch                   33/285 
+  Installing       : perl-Carp-1.42-396.el8.noarch                       34/285 
+  Installing       : perl-Exporter-5.72-396.el8.noarch                   35/285 
+  Installing       : perl-libs-4:5.26.3-421.el8.x86_64                   36/285 
+  Installing       : perl-Scalar-List-Utils-3:1.49-2.el8.x86_64          37/285 
+  Installing       : perl-PathTools-3.74-1.el8.x86_64                    38/285 
+  Installing       : perl-parent-1:0.237-1.el8.noarch                    39/285 
+  Installing       : perl-macros-4:5.26.3-421.el8.x86_64                 40/285 
+  Installing       : perl-File-Path-2.15-2.el8.noarch                    41/285 
+  Installing       : perl-IO-1.38-421.el8.x86_64                         42/285 
+  Installing       : perl-Text-Tabs+Wrap-2013.0523-395.el8.noarch        43/285 
+  Installing       : perl-threads-1:2.21-2.el8.x86_64                    44/285 
+  Installing       : perl-threads-shared-1.58-2.el8.x86_64               45/285 
+  Installing       : perl-Unicode-Normalize-1.25-396.el8.x86_64          46/285 
+  Installing       : perl-interpreter-4:5.26.3-421.el8.x86_64            47/285 
+  Installing       : perl-version-6:0.99.24-1.el8.x86_64                 48/285 
+  Downgrading      : libcom_err-1.45.6-4.el8.x86_64                      49/285 
+  Running scriptlet: libcom_err-1.45.6-4.el8.x86_64                      49/285 
+  Installing       : perl-Time-HiRes-4:1.9758-2.el8.x86_64               50/285 
+  Installing       : perl-CPAN-Meta-Requirements-2.140-396.el8.noarch    51/285 
+  Installing       : perl-ExtUtils-Manifest-1.70-395.el8.noarch          52/285 
+  Installing       : perl-ExtUtils-ParseXS-1:3.35-2.el8.noarch           53/285 
+  Running scriptlet: nginx-1:1.22.1-1.el8.ngx.x86_64                     54/285 
+  Installing       : nginx-1:1.22.1-1.el8.ngx.x86_64                     54/285 
+  Running scriptlet: nginx-1:1.22.1-1.el8.ngx.x86_64                     54/285 
+----------------------------------------------------------------------
+
+Thanks for using nginx!
+
+Please find the official documentation for nginx here:
+* https://nginx.org/en/docs/
+
+Please subscribe to nginx-announce mailing list to get
+the most important news about nginx:
+* https://nginx.org/en/support.html
+
+Commercial subscriptions for nginx are available on:
+* https://nginx.com/products/
+
+----------------------------------------------------------------------
+
+  Downgrading      : audit-libs-3.0.7-2.el8.2.x86_64                     55/285 
+  Installing       : perl-Test-Harness-1:3.42-1.el8.noarch               56/285 
+  Installing       : perl-Module-CoreList-1:5.20181130-1.el8.noarch      57/285 
+  Installing       : perl-Module-Metadata-1.000033-395.el8.noarch        58/285 
+  Installing       : perl-Compress-Raw-Zlib-2.081-1.el8.x86_64           59/285 
+  Installing       : perl-Filter-2:1.58-2.el8.x86_64                     60/285 
+  Installing       : perl-SelfLoader-1.23-421.el8.noarch                 61/285 
+  Installing       : perl-Module-Load-1:0.32-395.el8.noarch              62/285 
+  Installing       : perl-Perl-OSType-1.010-396.el8.noarch               63/285 
+  Downgrading      : python3-libselinux-2.9-5.el8.x86_64                 64/285 
+  Downgrading      : platform-python-setuptools-39.2.0-6.el8.noarch      65/285 
+  Installing       : perl-Text-Balanced-2.03-395.el8.noarch              66/285 
+  Installing       : perl-encoding-4:2.22-3.el8.x86_64                   67/285 
+  Downgrading      : libsemanage-2.9-8.el8.x86_64                        68/285 
+  Installing       : perl-Net-Ping-2.55-421.el8.noarch                   69/285 
+  Installing       : perl-Compress-Raw-Bzip2-2.081-1.el8.x86_64          70/285 
+  Installing       : perl-IO-Compress-2.081-1.el8.noarch                 71/285 
+  Installing       : perl-IO-Zlib-1:1.10-421.el8.noarch                  72/285 
+  Installing       : perl-CPAN-Meta-YAML-0.018-397.el8.noarch            73/285 
+  Installing       : perl-Digest-SHA-1:6.02-1.el8.x86_64                 74/285 
+  Installing       : perl-ExtUtils-Command-1:7.34-1.el8.noarch           75/285 
+  Installing       : perl-Locale-Maketext-1.28-396.el8.noarch            76/285 
+  Installing       : perl-Locale-Maketext-Simple-1:0.21-421.el8.noarc    77/285 
+  Installing       : perl-Params-Check-1:0.38-395.el8.noarch             78/285 
+  Installing       : perl-Module-Load-Conditional-0.68-395.el8.noarch    79/285 
+  Installing       : perl-Math-Complex-1.59-421.el8.noarch               80/285 
+  Installing       : perl-Math-BigInt-1:1.9998.11-7.el8.noarch           81/285 
+  Installing       : perl-JSON-PP-1:2.97.001-3.el8.noarch                82/285 
+  Installing       : perl-CPAN-Meta-2.150010-396.el8.noarch              83/285 
+  Installing       : perl-Math-BigRat-0.2614-1.el8.noarch                84/285 
+  Installing       : perl-Params-Util-1.07-22.el8.x86_64                 85/285 
+  Installing       : perl-Pod-Html-1.22.02-421.el8.noarch                86/285 
+  Installing       : perl-Sub-Install-0.928-14.el8.noarch                87/285 
+  Installing       : perl-TermReadKey-2.37-7.el8.x86_64                  88/285 
+  Downgrading      : libverto-0.3.0-5.el8.x86_64                         89/285 
+  Downgrading      : krb5-libs-1.18.2-14.el8.x86_64                      90/285 
+  Downgrading      : libcurl-7.61.1-22.el8_6.4.x86_64                    91/285 
+  Installing       : git-core-2.31.1-2.el8.x86_64                        92/285 
+  Downgrading      : libffi-3.1-23.el8.x86_64                            93/285 
+  Installing       : apr-1.6.3-12.el8.x86_64                             94/285 
+  Running scriptlet: apr-1.6.3-12.el8.x86_64                             94/285 
+  Installing       : apr-util-bdb-1.6.1-6.el8.x86_64                     95/285 
+  Installing       : apr-util-1.6.1-6.el8.x86_64                         96/285 
+  Running scriptlet: apr-util-1.6.1-6.el8.x86_64                         96/285 
+  Installing       : apr-util-openssl-1.6.1-6.el8.x86_64                 97/285 
+  Installing       : libjpeg-turbo-1.5.3-12.el8.x86_64                   98/285 
+  Installing       : python-srpm-macros-3-41.el8.noarch                  99/285 
+  Installing       : python-rpm-macros-3-41.el8.noarch                  100/285 
+  Installing       : python3-rpm-macros-3-41.el8.noarch                 101/285 
+  Installing       : libffi-devel-3.1-23.el8.x86_64                     102/285 
+  Running scriptlet: libffi-devel-3.1-23.el8.x86_64                     102/285 
+  Installing       : git-core-doc-2.31.1-2.el8.noarch                   103/285 
+  Running scriptlet: mongodb-org-server-4.0.28-1.el8.x86_64             104/285 
+  Installing       : mongodb-org-server-4.0.28-1.el8.x86_64             104/285 
+  Running scriptlet: mongodb-org-server-4.0.28-1.el8.x86_64             104/285 
+Created symlink /etc/systemd/system/multi-user.target.wants/mongod.service → /usr/lib/systemd/system/mongod.service.
+
+  Installing       : libkadm5-1.18.2-14.el8.x86_64                      105/285 
+  Installing       : libverto-devel-0.3.0-5.el8.x86_64                  106/285 
+  Installing       : perl-Data-OptList-0.110-6.el8.noarch               107/285 
+  Installing       : perl-bignum-0.49-2.el8.noarch                      108/285 
+  Installing       : perl-Math-BigInt-FastCalc-0.500.600-6.el8.x86_64   109/285 
+  Downgrading      : python3-libsemanage-2.9-8.el8.x86_64               110/285 
+  Installing       : perl-open-1.11-421.el8.noarch                      111/285 
+  Installing       : perl-Filter-Simple-0.94-2.el8.noarch               112/285 
+  Downgrading      : platform-python-pip-9.0.3-22.el8.noarch            113/285 
+  Downgrading      : python3-setools-4.3.0-3.el8.x86_64                 114/285 
+  Installing       : perl-Devel-SelfStubber-1.06-421.el8.noarch         115/285 
+  Installing       : perl-Archive-Zip-1.60-3.el8.noarch                 116/285 
+  Installing       : perl-Module-CoreList-tools-1:5.20181130-1.el8.no   117/285 
+  Downgrading      : python3-audit-3.0.7-2.el8.2.x86_64                 118/285 
+  Downgrading      : libss-1.45.6-4.el8.x86_64                          119/285 
+  Running scriptlet: libss-1.45.6-4.el8.x86_64                          119/285 
+  Downgrading      : e2fsprogs-libs-1.45.6-4.el8.x86_64                 120/285 
+  Running scriptlet: e2fsprogs-libs-1.45.6-4.el8.x86_64                 120/285 
+  Installing       : libcom_err-devel-1.45.6-4.el8.x86_64               121/285 
+  Installing       : perl-experimental-0.019-2.el8.noarch               122/285 
+  Installing       : perl-Algorithm-Diff-1.1903-9.el8.noarch            123/285 
+  Installing       : perl-Text-Diff-1.45-2.el8.noarch                   124/285 
+  Installing       : perl-Archive-Tar-2.30-1.el8.noarch                 125/285 
+  Installing       : perl-Attribute-Handlers-0.99-421.el8.noarch        126/285 
+  Installing       : perl-B-Debug-1.26-2.el8.noarch                     127/285 
+  Installing       : perl-Compress-Bzip2-2.26-6.el8.x86_64              128/285 
+  Installing       : perl-Config-Perl-V-0.30-1.el8.noarch               129/285 
+  Installing       : perl-DB_File-1.842-1.el8.x86_64                    130/285 
+  Installing       : perl-Devel-PPPort-3.36-5.el8.x86_64                131/285 
+  Installing       : perl-Devel-Size-0.81-2.el8.x86_64                  132/285 
+  Installing       : perl-Encode-Locale-1.05-10.module+el8.3.0+6498+9   133/285 
+  Installing       : perl-Env-1.04-395.el8.noarch                       134/285 
+  Installing       : perl-Error-1:0.17025-2.el8.noarch                  135/285 
+  Installing       : perl-ExtUtils-MM-Utils-1:7.34-1.el8.noarch         136/285 
+  Installing       : perl-IPC-Cmd-2:1.02-1.el8.noarch                   137/285 
+  Installing       : perl-File-Fetch-0.56-2.el8.noarch                  138/285 
+  Installing       : perl-IPC-System-Simple-1.25-17.el8.noarch          139/285 
+  Installing       : perl-autodie-2.29-396.el8.noarch                   140/285 
+  Installing       : perl-IPC-SysV-2.07-397.el8.x86_64                  141/285 
+  Installing       : perl-Locale-Codes-3.57-1.el8.noarch                142/285 
+  Installing       : perl-local-lib-2.000024-2.el8.noarch               143/285 
+  Installing       : perl-Memoize-1.03-421.el8.noarch                   144/285 
+  Installing       : perl-Module-Loaded-1:0.08-421.el8.noarch           145/285 
+  Installing       : perl-Package-Generator-1.106-11.el8.noarch         146/285 
+  Installing       : perl-Sub-Exporter-0.987-15.el8.noarch              147/285 
+  Installing       : perl-Pod-Checker-4:1.73-395.el8.noarch             148/285 
+  Installing       : perl-Pod-Parser-1.63-396.el8.noarch                149/285 
+  Installing       : perl-Sys-Syslog-0.35-397.el8.x86_64                150/285 
+  Installing       : perl-Test-1.30-421.el8.noarch                      151/285 
+  Installing       : perl-Test-Simple-1:1.302135-1.el8.noarch           152/285 
+  Installing       : perl-Text-Glob-0.11-4.el8.noarch                   153/285 
+  Installing       : perl-Text-Template-1.51-1.el8.noarch               154/285 
+  Installing       : perl-Time-Piece-1.31-421.el8.x86_64                155/285 
+  Installing       : perl-Unicode-Collate-1.25-2.el8.x86_64             156/285 
+  Installing       : perl-utils-5.26.3-421.el8.noarch                   157/285 
+  Installing       : perl-Thread-Queue-3.13-1.el8.noarch                158/285 
+  Installing       : perl-File-Which-1.22-2.el8.noarch                  159/285 
+  Installing       : perl-File-HomeDir-1.002-4.el8.noarch               160/285 
+  Installing       : perl-Devel-Peek-1.26-421.el8.x86_64                161/285 
+  Installing       : perl-MRO-Compat-0.13-4.el8.noarch                  162/285 
+  Installing       : perl-Data-Section-0.200007-3.el8.noarch            163/285 
+  Installing       : perl-Software-License-0.103013-2.el8.noarch        164/285 
+  Installing       : perl-perlfaq-5.20180605-1.el8.noarch               165/285 
+  Installing       : perl-PerlIO-via-QuotedPrint-0.08-395.el8.noarch    166/285 
+  Installing       : erlang-25.3.2.7-1.el8.x86_64                       167/285 
+  Installing       : zlib-devel-1.2.11-21.el8_7.x86_64                  168/285 
+  Downgrading      : libselinux-utils-2.9-5.el8.x86_64                  169/285 
+  Downgrading      : policycoreutils-2.9-16.el8.x86_64                  170/285 
+  Running scriptlet: policycoreutils-2.9-16.el8.x86_64                  170/285 
+  Downgrading      : python3-policycoreutils-2.9-16.el8.noarch          171/285 
+  Installing       : dwz-0.12-10.el8.x86_64                             172/285 
+  Installing       : jbigkit-libs-2.1-14.el8.x86_64                     173/285 
+  Running scriptlet: jbigkit-libs-2.1-14.el8.x86_64                     173/285 
+  Installing       : libtiff-4.0.9-21.el8.x86_64                        174/285 
+  Installing       : libwebp-1.0.0-5.el8.x86_64                         175/285 
+  Installing       : make-1:4.2.1-11.el8.x86_64                         176/285 
+  Running scriptlet: make-1:4.2.1-11.el8.x86_64                         176/285 
+  Installing       : mongodb-org-mongos-4.0.28-1.el8.x86_64             177/285 
+  Installing       : mongodb-org-shell-4.0.28-1.el8.x86_64              178/285 
+  Installing       : mongodb-org-tools-4.0.28-1.el8.x86_64              179/285 
+  Running scriptlet: nodejs-2:14.20.0-1nodesource.x86_64                180/285 
+  Installing       : nodejs-2:14.20.0-1nodesource.x86_64                180/285 
+  Installing       : pcre2-utf16-10.32-3.el8_6.x86_64                   181/285 
+  Installing       : pcre2-utf32-10.32-3.el8_6.x86_64                   182/285 
+  Installing       : pcre2-devel-10.32-3.el8_6.x86_64                   183/285 
+  Installing       : rust-srpm-macros-5-2.el8.noarch                    184/285 
+  Installing       : qt5-srpm-macros-5.15.2-1.el8.noarch                185/285 
+  Installing       : python3-pyparsing-2.1.10-7.el8.noarch              186/285 
+  Installing       : systemtap-sdt-devel-4.6-4.el8.x86_64               187/285 
+  Installing       : python38-setuptools-wheel-41.6.0-5.module+el8.5.   188/285 
+  Installing       : python38-pip-wheel-19.3.1-5.module+el8.6.0+13002   189/285 
+  Installing       : python38-libs-3.8.12-1.module+el8.6.0+12642+c371   190/285 
+  Installing       : python38-3.8.12-1.module+el8.6.0+12642+c3710b74.   191/285 
+  Running scriptlet: python38-3.8.12-1.module+el8.6.0+12642+c3710b74.   191/285 
+  Installing       : python38-setuptools-41.6.0-5.module+el8.5.0+1220   192/285 
+  Running scriptlet: python38-setuptools-41.6.0-5.module+el8.5.0+1220   192/285 
+  Installing       : python38-pip-19.3.1-5.module+el8.6.0+13002+70cfc   193/285 
+  Running scriptlet: python38-pip-19.3.1-5.module+el8.6.0+13002+70cfc   193/285 
+  Installing       : python38-devel-3.8.12-1.module+el8.6.0+12642+c37   194/285 
+  Running scriptlet: python38-devel-3.8.12-1.module+el8.6.0+12642+c37   194/285 
+  Installing       : perl-srpm-macros-1-25.el8.noarch                   195/285 
+  Installing       : openblas-srpm-macros-2-2.el8.noarch                196/285 
+  Installing       : ocaml-srpm-macros-5-4.el8.noarch                   197/285 
+  Installing       : libsepol-devel-2.9-3.el8.x86_64                    198/285 
+  Installing       : libselinux-devel-2.9-5.el8.x86_64                  199/285 
+  Installing       : keyutils-libs-devel-1.5.10-9.el8.x86_64            200/285 
+  Installing       : krb5-devel-1.18.2-14.el8.x86_64                    201/285 
+  Installing       : openssl-devel-1:1.1.1k-9.el8_7.x86_64              202/285 
+  Installing       : go-srpm-macros-2-17.el8.noarch                     203/285 
+  Installing       : ghc-srpm-macros-1.4.2-7.el8.noarch                 204/285 
+  Installing       : efi-srpm-macros-3-3.el8.noarch                     205/285 
+  Installing       : redhat-rpm-config-131-1.el8.noarch                 206/285 
+  Installing       : perl-ExtUtils-Install-2.14-4.el8.noarch            207/285 
+  Installing       : perl-devel-4:5.26.3-421.el8.x86_64                 208/285 
+  Installing       : perl-ExtUtils-MakeMaker-1:7.34-1.el8.noarch        209/285 
+  Installing       : perl-ExtUtils-CBuilder-1:0.280230-2.el8.noarch     210/285 
+  Installing       : perl-ExtUtils-Embed-1.34-421.el8.noarch            211/285 
+  Installing       : perl-ExtUtils-Miniperl-1.06-421.el8.noarch         212/285 
+  Installing       : perl-libnetcfg-4:5.26.3-421.el8.noarch             213/285 
+  Installing       : perl-Encode-devel-4:2.97-3.el8.x86_64              214/285 
+  Installing       : perl-inc-latest-2:0.500-9.el8.noarch               215/285 
+  Installing       : perl-Module-Build-2:0.42.24-5.el8.noarch           216/285 
+  Installing       : perl-CPAN-2.18-397.el8.noarch                      217/285 
+  Downgrading      : libX11-common-1.6.8-5.el8.noarch                   218/285 
+  Downgrading      : libX11-1.6.8-5.el8.x86_64                          219/285 
+  Installing       : libXpm-3.5.12-8.el8.x86_64                         220/285 
+  Installing       : gd-2.2.5-7.el8.x86_64                              221/285 
+  Running scriptlet: gd-2.2.5-7.el8.x86_64                              221/285 
+  Downgrading      : emacs-filesystem-1:26.1-7.el8.noarch               222/285 
+  Installing       : perl-Git-2.31.1-2.el8.noarch                       223/285 
+  Installing       : git-2.31.1-2.el8.x86_64                            224/285 
+  Downgrading      : python3-dnf-plugins-core-4.0.21-11.el8.noarch      225/285 
+  Downgrading      : dnf-plugins-core-4.0.21-11.el8.noarch              226/285 
+  Downgrading      : yum-utils-4.0.21-11.el8.noarch                     227/285 
+  Installing       : epel-release-8-19.el8.noarch                       228/285 
+  Running scriptlet: epel-release-8-19.el8.noarch                       228/285 
+Many EPEL packages require the CodeReady Builder (CRB) repository.
+It is recommended that you run /usr/bin/crb enable to enable the CRB repository.
+
+  Running scriptlet: st2-3.8.0-2.x86_64                                 229/285 
+  Installing       : st2-3.8.0-2.x86_64                                 229/285 
+  Running scriptlet: st2-3.8.0-2.x86_64                                 229/285 
+  Installing       : nginx-module-image-filter-1:1.22.1-1.el8.ngx.x86   230/285 
+  Running scriptlet: nginx-module-image-filter-1:1.22.1-1.el8.ngx.x86   230/285 
+----------------------------------------------------------------------
+
+The image filter dynamic module for nginx has been installed.
+To enable this module, add the following to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_image_filter_module.so;
+
+Please refer to the module documentation for further details:
+https://nginx.org/en/docs/http/ngx_http_image_filter_module.html
+
+----------------------------------------------------------------------
+
+  Installing       : perl-4:5.26.3-421.el8.x86_64                       231/285 
+  Running scriptlet: st2chatops-3.8.0-1.x86_64                          232/285 
+  Installing       : st2chatops-3.8.0-1.x86_64                          232/285 
+  Installing       : mongodb-org-4.0.28-1.el8.x86_64                    233/285 
+  Downgrading      : policycoreutils-python-utils-2.9-16.el8.noarch     234/285 
+  Running scriptlet: rabbitmq-server-3.12.8-1.el8.noarch                235/285 
+  Installing       : rabbitmq-server-3.12.8-1.el8.noarch                235/285 
+  Running scriptlet: rabbitmq-server-3.12.8-1.el8.noarch                235/285 
+  Downgrading      : e2fsprogs-1.45.6-4.el8.x86_64                      236/285 
+  Downgrading      : python3-pip-9.0.3-22.el8.noarch                    237/285 
+  Installing       : httpd-tools-2.4.37-47.module+el8.6.0+15654+427eb   238/285 
+  Downgrading      : curl-7.61.1-22.el8_6.4.x86_64                      239/285 
+  Downgrading      : audit-3.0.7-2.el8.2.x86_64                         240/285 
+  Running scriptlet: audit-3.0.7-2.el8.2.x86_64                         240/285 
+  Downgrading      : python3-setuptools-39.2.0-6.el8.noarch             241/285 
+  Installing       : nginx-module-njs-1:1.22.1+0.7.7-1.el8.ngx.x86_64   242/285 
+  Running scriptlet: nginx-module-njs-1:1.22.1+0.7.7-1.el8.ngx.x86_64   242/285 
+----------------------------------------------------------------------
+
+The njs dynamic modules for nginx have been installed.
+To enable these modules, add the following to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_js_module.so;
+    load_module modules/ngx_stream_js_module.so;
+
+Please refer to the modules documentation for further details:
+https://nginx.org/en/docs/njs/
+https://nginx.org/en/docs/http/ngx_http_js_module.html
+https://nginx.org/en/docs/stream/ngx_stream_js_module.html
+
+----------------------------------------------------------------------
+
+  Installing       : nginx-module-perl-1:1.22.1-1.el8.ngx.x86_64        243/285 
+  Running scriptlet: nginx-module-perl-1:1.22.1-1.el8.ngx.x86_64        243/285 
+----------------------------------------------------------------------
+
+The Perl dynamic module for nginx has been installed.
+To enable this module, add the following to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_perl_module.so;
+
+Please refer to the module documentation for further details:
+https://nginx.org/en/docs/http/ngx_http_perl_module.html
+
+----------------------------------------------------------------------
+
+  Installing       : nginx-module-xslt-1:1.22.1-1.el8.ngx.x86_64        244/285 
+  Running scriptlet: nginx-module-xslt-1:1.22.1-1.el8.ngx.x86_64        244/285 
+----------------------------------------------------------------------
+
+The xslt dynamic module for nginx has been installed.
+To enable this module, add the following to /etc/nginx/nginx.conf
+and reload nginx:
+
+    load_module modules/ngx_http_xslt_filter_module.so;
+
+Please refer to the module documentation for further details:
+https://nginx.org/en/docs/http/ngx_http_xslt_module.html
+
+----------------------------------------------------------------------
+
+  Running scriptlet: redis-5.0.3-5.module+el8.4.0+12927+b9845322.x86_   245/285 
+  Installing       : redis-5.0.3-5.module+el8.4.0+12927+b9845322.x86_   245/285 
+  Running scriptlet: redis-5.0.3-5.module+el8.4.0+12927+b9845322.x86_   245/285 
+  Installing       : st2web-3.8.0-1.x86_64                              246/285 
+  Installing       : nginx-debuginfo-1:1.22.1-1.el8.ngx.x86_64          247/285 
+  Installing       : dejavu-sans-fonts-2.35-7.el8.noarch                248/285 
+  Installing       : crudini-0.9.3-1.el8.noarch                         249/285 
+  Running scriptlet: audit-3.0.7-5.el8.x86_64                           250/285 
+  Cleanup          : audit-3.0.7-5.el8.x86_64                           250/285 
+  Running scriptlet: audit-3.0.7-5.el8.x86_64                           250/285 
+  Cleanup          : e2fsprogs-1.45.6-5.el8.x86_64                      251/285 
+  Cleanup          : e2fsprogs-libs-1.45.6-5.el8.x86_64                 252/285 
+  Running scriptlet: e2fsprogs-libs-1.45.6-5.el8.x86_64                 252/285 
+  Cleanup          : libss-1.45.6-5.el8.x86_64                          253/285 
+  Running scriptlet: libss-1.45.6-5.el8.x86_64                          253/285 
+  Cleanup          : curl-7.61.1-33.el8.x86_64                          254/285 
+  Cleanup          : yum-utils-4.0.21-23.el8.noarch                     255/285 
+  Cleanup          : dnf-plugins-core-4.0.21-23.el8.noarch              256/285 
+  Cleanup          : python3-setuptools-39.2.0-7.el8.noarch             257/285 
+  Cleanup          : python3-pip-9.0.3-23.el8.noarch                    258/285 
+  Cleanup          : platform-python-pip-9.0.3-23.el8.noarch            259/285 
+  Cleanup          : policycoreutils-python-utils-2.9-24.el8.noarch     260/285 
+  Cleanup          : python3-policycoreutils-2.9-24.el8.noarch          261/285 
+  Cleanup          : python3-dnf-plugins-core-4.0.21-23.el8.noarch      262/285 
+  Running scriptlet: python3-dnf-plugins-core-4.0.21-23.el8.noarch      262/285 
+  Cleanup          : emacs-filesystem-1:26.1-11.el8.noarch              263/285 
+  Cleanup          : libcurl-7.61.1-33.el8.x86_64                       264/285 
+  Cleanup          : krb5-libs-1.18.2-26.el8_9.x86_64                   265/285 
+  Running scriptlet: policycoreutils-2.9-24.el8.x86_64                  266/285 
+  Cleanup          : policycoreutils-2.9-24.el8.x86_64                  266/285 
+  Cleanup          : libX11-1.6.8-6.el8.x86_64                          267/285 
+  Cleanup          : libcom_err-1.45.6-5.el8.x86_64                     268/285 
+  Running scriptlet: libcom_err-1.45.6-5.el8.x86_64                     268/285 
+  Cleanup          : python3-libsemanage-2.9-9.el8_6.x86_64             269/285 
+  Cleanup          : libsemanage-2.9-9.el8_6.x86_64                     270/285 
+  Cleanup          : libselinux-utils-2.9-8.el8.x86_64                  271/285 
+  Cleanup          : python3-setools-4.3.0-5.el8.x86_64                 272/285 
+  Cleanup          : python3-libselinux-2.9-8.el8.x86_64                273/285 
+  Cleanup          : libverto-0.3.2-2.el8.x86_64                        274/285 
+  Cleanup          : python3-audit-3.0.7-5.el8.x86_64                   275/285 
+  Cleanup          : audit-libs-3.0.7-5.el8.x86_64                      276/285 
+  Cleanup          : libffi-3.1-24.el8.x86_64                           277/285 
+  Cleanup          : zlib-1.2.11-25.el8.x86_64                          278/285 
+  Cleanup          : platform-python-setuptools-39.2.0-7.el8.noarch     279/285 
+  Cleanup          : libX11-common-1.6.8-6.el8.noarch                   280/285 
+  Cleanup          : glibc-langpack-en-2.28-236.el8.7.x86_64            281/285 
+  Cleanup          : libselinux-2.9-8.el8.x86_64                        282/285 
+  Cleanup          : glibc-common-2.28-236.el8.7.x86_64                 283/285 
+  Cleanup          : glibc-2.28-236.el8.7.x86_64                        284/285 
+  Cleanup          : glibc-gconv-extra-2.28-236.el8.7.x86_64            285/285 
+  Running scriptlet: glibc-gconv-extra-2.28-236.el8.7.x86_64            285/285 
+[/usr/lib/tmpfiles.d/rabbitmq-server.conf:1] Line references path below legacy directory /var/run/, updating /var/run/rabbitmq → /run/rabbitmq; please update the tmpfiles.d/ drop-in file accordingly.
+
+  Running scriptlet: glibc-common-2.28-225.el8.x86_64                   285/285 
+  Verifying        : libverto-0.3.0-5.el8.x86_64                          1/285 
+  Verifying        : libverto-0.3.2-2.el8.x86_64                          2/285 
+  Verifying        : libselinux-2.9-5.el8.x86_64                          3/285 
+  Verifying        : libselinux-2.9-8.el8.x86_64                          4/285 
+  Verifying        : libselinux-utils-2.9-5.el8.x86_64                    5/285 
+  Verifying        : libselinux-utils-2.9-8.el8.x86_64                    6/285 
+  Verifying        : platform-python-setuptools-39.2.0-6.el8.noarch       7/285 
+  Verifying        : platform-python-setuptools-39.2.0-7.el8.noarch       8/285 
+  Verifying        : python3-libselinux-2.9-5.el8.x86_64                  9/285 
+  Verifying        : python3-libselinux-2.9-8.el8.x86_64                 10/285 
+  Verifying        : krb5-libs-1.18.2-14.el8.x86_64                      11/285 
+  Verifying        : krb5-libs-1.18.2-26.el8_9.x86_64                    12/285 
+  Verifying        : audit-libs-3.0.7-2.el8.2.x86_64                     13/285 
+  Verifying        : audit-libs-3.0.7-5.el8.x86_64                       14/285 
+  Verifying        : libss-1.45.6-4.el8.x86_64                           15/285 
+  Verifying        : libss-1.45.6-5.el8.x86_64                           16/285 
+  Verifying        : python3-dnf-plugins-core-4.0.21-11.el8.noarch       17/285 
+  Verifying        : python3-dnf-plugins-core-4.0.21-23.el8.noarch       18/285 
+  Verifying        : audit-3.0.7-2.el8.2.x86_64                          19/285 
+  Verifying        : audit-3.0.7-5.el8.x86_64                            20/285 
+  Verifying        : dnf-plugins-core-4.0.21-11.el8.noarch               21/285 
+  Verifying        : dnf-plugins-core-4.0.21-23.el8.noarch               22/285 
+  Verifying        : e2fsprogs-libs-1.45.6-4.el8.x86_64                  23/285 
+  Verifying        : e2fsprogs-libs-1.45.6-5.el8.x86_64                  24/285 
+  Verifying        : e2fsprogs-1.45.6-4.el8.x86_64                       25/285 
+  Verifying        : e2fsprogs-1.45.6-5.el8.x86_64                       26/285 
+  Verifying        : glibc-common-2.28-225.el8.x86_64                    27/285 
+  Verifying        : glibc-common-2.28-236.el8.7.x86_64                  28/285 
+  Verifying        : glibc-langpack-en-2.28-225.el8.x86_64               29/285 
+  Verifying        : glibc-langpack-en-2.28-236.el8.7.x86_64             30/285 
+  Verifying        : glibc-2.28-225.el8.x86_64                           31/285 
+  Verifying        : glibc-2.28-236.el8.7.x86_64                         32/285 
+  Verifying        : curl-7.61.1-22.el8_6.4.x86_64                       33/285 
+  Verifying        : curl-7.61.1-33.el8.x86_64                           34/285 
+  Verifying        : emacs-filesystem-1:26.1-7.el8.noarch                35/285 
+  Verifying        : emacs-filesystem-1:26.1-11.el8.noarch               36/285 
+  Verifying        : glibc-gconv-extra-2.28-225.el8.x86_64               37/285 
+  Verifying        : glibc-gconv-extra-2.28-236.el8.7.x86_64             38/285 
+  Verifying        : libcom_err-1.45.6-4.el8.x86_64                      39/285 
+  Verifying        : libcom_err-1.45.6-5.el8.x86_64                      40/285 
+  Verifying        : libcurl-7.61.1-22.el8_6.4.x86_64                    41/285 
+  Verifying        : libcurl-7.61.1-33.el8.x86_64                        42/285 
+  Verifying        : libffi-3.1-23.el8.x86_64                            43/285 
+  Verifying        : libffi-3.1-24.el8.x86_64                            44/285 
+  Verifying        : libsemanage-2.9-8.el8.x86_64                        45/285 
+  Verifying        : libsemanage-2.9-9.el8_6.x86_64                      46/285 
+  Verifying        : libX11-1.6.8-5.el8.x86_64                           47/285 
+  Verifying        : libX11-1.6.8-6.el8.x86_64                           48/285 
+  Verifying        : libX11-common-1.6.8-5.el8.noarch                    49/285 
+  Verifying        : libX11-common-1.6.8-6.el8.noarch                    50/285 
+  Verifying        : platform-python-pip-9.0.3-22.el8.noarch             51/285 
+  Verifying        : platform-python-pip-9.0.3-23.el8.noarch             52/285 
+  Verifying        : policycoreutils-2.9-16.el8.x86_64                   53/285 
+  Verifying        : policycoreutils-2.9-24.el8.x86_64                   54/285 
+  Verifying        : policycoreutils-python-utils-2.9-16.el8.noarch      55/285 
+  Verifying        : policycoreutils-python-utils-2.9-24.el8.noarch      56/285 
+  Verifying        : python3-audit-3.0.7-2.el8.2.x86_64                  57/285 
+  Verifying        : python3-audit-3.0.7-5.el8.x86_64                    58/285 
+  Verifying        : python3-libsemanage-2.9-8.el8.x86_64                59/285 
+  Verifying        : python3-libsemanage-2.9-9.el8_6.x86_64              60/285 
+  Verifying        : python3-pip-9.0.3-22.el8.noarch                     61/285 
+  Verifying        : python3-pip-9.0.3-23.el8.noarch                     62/285 
+  Verifying        : python3-policycoreutils-2.9-16.el8.noarch           63/285 
+  Verifying        : python3-policycoreutils-2.9-24.el8.noarch           64/285 
+  Verifying        : python3-setools-4.3.0-3.el8.x86_64                  65/285 
+  Verifying        : python3-setools-4.3.0-5.el8.x86_64                  66/285 
+  Verifying        : python3-setuptools-39.2.0-6.el8.noarch              67/285 
+  Verifying        : python3-setuptools-39.2.0-7.el8.noarch              68/285 
+  Verifying        : yum-utils-4.0.21-11.el8.noarch                      69/285 
+  Verifying        : yum-utils-4.0.21-23.el8.noarch                      70/285 
+  Verifying        : zlib-1.2.11-21.el8_7.x86_64                         71/285 
+  Verifying        : zlib-1.2.11-25.el8.x86_64                           72/285 
+  Verifying        : apr-1.6.3-12.el8.x86_64                             73/285 
+  Verifying        : apr-util-1.6.1-6.el8.x86_64                         74/285 
+  Verifying        : apr-util-bdb-1.6.1-6.el8.x86_64                     75/285 
+  Verifying        : apr-util-openssl-1.6.1-6.el8.x86_64                 76/285 
+  Verifying        : crudini-0.9.3-1.el8.noarch                          77/285 
+  Verifying        : dejavu-sans-fonts-2.35-7.el8.noarch                 78/285 
+  Verifying        : dwz-0.12-10.el8.x86_64                              79/285 
+  Verifying        : efi-srpm-macros-3-3.el8.noarch                      80/285 
+  Verifying        : epel-release-8-19.el8.noarch                        81/285 
+  Verifying        : erlang-25.3.2.7-1.el8.x86_64                        82/285 
+  Verifying        : gd-2.2.5-7.el8.x86_64                               83/285 
+  Verifying        : ghc-srpm-macros-1.4.2-7.el8.noarch                  84/285 
+  Verifying        : git-2.31.1-2.el8.x86_64                             85/285 
+  Verifying        : git-core-2.31.1-2.el8.x86_64                        86/285 
+  Verifying        : git-core-doc-2.31.1-2.el8.noarch                    87/285 
+  Verifying        : go-srpm-macros-2-17.el8.noarch                      88/285 
+  Verifying        : httpd-tools-2.4.37-47.module+el8.6.0+15654+427eb    89/285 
+  Verifying        : jbigkit-libs-2.1-14.el8.x86_64                      90/285 
+  Verifying        : keyutils-libs-devel-1.5.10-9.el8.x86_64             91/285 
+  Verifying        : krb5-devel-1.18.2-14.el8.x86_64                     92/285 
+  Verifying        : libcom_err-devel-1.45.6-4.el8.x86_64                93/285 
+  Verifying        : libffi-devel-3.1-23.el8.x86_64                      94/285 
+  Verifying        : libjpeg-turbo-1.5.3-12.el8.x86_64                   95/285 
+  Verifying        : libkadm5-1.18.2-14.el8.x86_64                       96/285 
+  Verifying        : libselinux-devel-2.9-5.el8.x86_64                   97/285 
+  Verifying        : libsepol-devel-2.9-3.el8.x86_64                     98/285 
+  Verifying        : libtiff-4.0.9-21.el8.x86_64                         99/285 
+  Verifying        : libverto-devel-0.3.0-5.el8.x86_64                  100/285 
+  Verifying        : libwebp-1.0.0-5.el8.x86_64                         101/285 
+  Verifying        : libXpm-3.5.12-8.el8.x86_64                         102/285 
+  Verifying        : make-1:4.2.1-11.el8.x86_64                         103/285 
+  Verifying        : mongodb-org-4.0.28-1.el8.x86_64                    104/285 
+  Verifying        : mongodb-org-mongos-4.0.28-1.el8.x86_64             105/285 
+  Verifying        : mongodb-org-server-4.0.28-1.el8.x86_64             106/285 
+  Verifying        : mongodb-org-shell-4.0.28-1.el8.x86_64              107/285 
+  Verifying        : mongodb-org-tools-4.0.28-1.el8.x86_64              108/285 
+  Verifying        : nginx-1:1.22.1-1.el8.ngx.x86_64                    109/285 
+  Verifying        : nginx-debuginfo-1:1.22.1-1.el8.ngx.x86_64          110/285 
+  Verifying        : nginx-module-image-filter-1:1.22.1-1.el8.ngx.x86   111/285 
+  Verifying        : nginx-module-njs-1:1.22.1+0.7.7-1.el8.ngx.x86_64   112/285 
+  Verifying        : nginx-module-perl-1:1.22.1-1.el8.ngx.x86_64        113/285 
+  Verifying        : nginx-module-xslt-1:1.22.1-1.el8.ngx.x86_64        114/285 
+  Verifying        : nodejs-2:14.20.0-1nodesource.x86_64                115/285 
+  Verifying        : ocaml-srpm-macros-5-4.el8.noarch                   116/285 
+  Verifying        : openblas-srpm-macros-2-2.el8.noarch                117/285 
+  Verifying        : openssl-devel-1:1.1.1k-9.el8_7.x86_64              118/285 
+  Verifying        : pcre2-devel-10.32-3.el8_6.x86_64                   119/285 
+  Verifying        : pcre2-utf16-10.32-3.el8_6.x86_64                   120/285 
+  Verifying        : pcre2-utf32-10.32-3.el8_6.x86_64                   121/285 
+  Verifying        : perl-4:5.26.3-421.el8.x86_64                       122/285 
+  Verifying        : perl-Algorithm-Diff-1.1903-9.el8.noarch            123/285 
+  Verifying        : perl-Archive-Tar-2.30-1.el8.noarch                 124/285 
+  Verifying        : perl-Archive-Zip-1.60-3.el8.noarch                 125/285 
+  Verifying        : perl-Attribute-Handlers-0.99-421.el8.noarch        126/285 
+  Verifying        : perl-autodie-2.29-396.el8.noarch                   127/285 
+  Verifying        : perl-B-Debug-1.26-2.el8.noarch                     128/285 
+  Verifying        : perl-bignum-0.49-2.el8.noarch                      129/285 
+  Verifying        : perl-Carp-1.42-396.el8.noarch                      130/285 
+  Verifying        : perl-Compress-Bzip2-2.26-6.el8.x86_64              131/285 
+  Verifying        : perl-Compress-Raw-Bzip2-2.081-1.el8.x86_64         132/285 
+  Verifying        : perl-Compress-Raw-Zlib-2.081-1.el8.x86_64          133/285 
+  Verifying        : perl-Config-Perl-V-0.30-1.el8.noarch               134/285 
+  Verifying        : perl-constant-1.33-396.el8.noarch                  135/285 
+  Verifying        : perl-CPAN-2.18-397.el8.noarch                      136/285 
+  Verifying        : perl-CPAN-Meta-2.150010-396.el8.noarch             137/285 
+  Verifying        : perl-CPAN-Meta-Requirements-2.140-396.el8.noarch   138/285 
+  Verifying        : perl-CPAN-Meta-YAML-0.018-397.el8.noarch           139/285 
+  Verifying        : perl-Data-Dumper-2.167-399.el8.x86_64              140/285 
+  Verifying        : perl-Data-OptList-0.110-6.el8.noarch               141/285 
+  Verifying        : perl-Data-Section-0.200007-3.el8.noarch            142/285 
+  Verifying        : perl-DB_File-1.842-1.el8.x86_64                    143/285 
+  Verifying        : perl-devel-4:5.26.3-421.el8.x86_64                 144/285 
+  Verifying        : perl-Devel-Peek-1.26-421.el8.x86_64                145/285 
+  Verifying        : perl-Devel-PPPort-3.36-5.el8.x86_64                146/285 
+  Verifying        : perl-Devel-SelfStubber-1.06-421.el8.noarch         147/285 
+  Verifying        : perl-Devel-Size-0.81-2.el8.x86_64                  148/285 
+  Verifying        : perl-Digest-1.17-395.el8.noarch                    149/285 
+  Verifying        : perl-Digest-MD5-2.55-396.el8.x86_64                150/285 
+  Verifying        : perl-Digest-SHA-1:6.02-1.el8.x86_64                151/285 
+  Verifying        : perl-Encode-4:2.97-3.el8.x86_64                    152/285 
+  Verifying        : perl-Encode-devel-4:2.97-3.el8.x86_64              153/285 
+  Verifying        : perl-Encode-Locale-1.05-10.module+el8.3.0+6498+9   154/285 
+  Verifying        : perl-encoding-4:2.22-3.el8.x86_64                  155/285 
+  Verifying        : perl-Env-1.04-395.el8.noarch                       156/285 
+  Verifying        : perl-Errno-1.28-421.el8.x86_64                     157/285 
+  Verifying        : perl-Error-1:0.17025-2.el8.noarch                  158/285 
+  Verifying        : perl-experimental-0.019-2.el8.noarch               159/285 
+  Verifying        : perl-Exporter-5.72-396.el8.noarch                  160/285 
+  Verifying        : perl-ExtUtils-CBuilder-1:0.280230-2.el8.noarch     161/285 
+  Verifying        : perl-ExtUtils-Command-1:7.34-1.el8.noarch          162/285 
+  Verifying        : perl-ExtUtils-Embed-1.34-421.el8.noarch            163/285 
+  Verifying        : perl-ExtUtils-Install-2.14-4.el8.noarch            164/285 
+  Verifying        : perl-ExtUtils-MakeMaker-1:7.34-1.el8.noarch        165/285 
+  Verifying        : perl-ExtUtils-Manifest-1.70-395.el8.noarch         166/285 
+  Verifying        : perl-ExtUtils-Miniperl-1.06-421.el8.noarch         167/285 
+  Verifying        : perl-ExtUtils-MM-Utils-1:7.34-1.el8.noarch         168/285 
+  Verifying        : perl-ExtUtils-ParseXS-1:3.35-2.el8.noarch          169/285 
+  Verifying        : perl-File-Fetch-0.56-2.el8.noarch                  170/285 
+  Verifying        : perl-File-HomeDir-1.002-4.el8.noarch               171/285 
+  Verifying        : perl-File-Path-2.15-2.el8.noarch                   172/285 
+  Verifying        : perl-File-Temp-0.230.600-1.el8.noarch              173/285 
+  Verifying        : perl-File-Which-1.22-2.el8.noarch                  174/285 
+  Verifying        : perl-Filter-2:1.58-2.el8.x86_64                    175/285 
+  Verifying        : perl-Filter-Simple-0.94-2.el8.noarch               176/285 
+  Verifying        : perl-Getopt-Long-1:2.50-4.el8.noarch               177/285 
+  Verifying        : perl-Git-2.31.1-2.el8.noarch                       178/285 
+  Verifying        : perl-HTTP-Tiny-0.074-1.el8.noarch                  179/285 
+  Verifying        : perl-inc-latest-2:0.500-9.el8.noarch               180/285 
+  Verifying        : perl-interpreter-4:5.26.3-421.el8.x86_64           181/285 
+  Verifying        : perl-IO-1.38-421.el8.x86_64                        182/285 
+  Verifying        : perl-IO-Compress-2.081-1.el8.noarch                183/285 
+  Verifying        : perl-IO-Socket-IP-0.39-5.el8.noarch                184/285 
+  Verifying        : perl-IO-Socket-SSL-2.066-4.module+el8.3.0+6446+5   185/285 
+  Verifying        : perl-IO-Zlib-1:1.10-421.el8.noarch                 186/285 
+  Verifying        : perl-IPC-Cmd-2:1.02-1.el8.noarch                   187/285 
+  Verifying        : perl-IPC-System-Simple-1.25-17.el8.noarch          188/285 
+  Verifying        : perl-IPC-SysV-2.07-397.el8.x86_64                  189/285 
+  Verifying        : perl-JSON-PP-1:2.97.001-3.el8.noarch               190/285 
+  Verifying        : perl-libnet-3.11-3.el8.noarch                      191/285 
+  Verifying        : perl-libnetcfg-4:5.26.3-421.el8.noarch             192/285 
+  Verifying        : perl-libs-4:5.26.3-421.el8.x86_64                  193/285 
+  Verifying        : perl-Locale-Codes-3.57-1.el8.noarch                194/285 
+  Verifying        : perl-Locale-Maketext-1.28-396.el8.noarch           195/285 
+  Verifying        : perl-Locale-Maketext-Simple-1:0.21-421.el8.noarc   196/285 
+  Verifying        : perl-local-lib-2.000024-2.el8.noarch               197/285 
+  Verifying        : perl-macros-4:5.26.3-421.el8.x86_64                198/285 
+  Verifying        : perl-Math-BigInt-1:1.9998.11-7.el8.noarch          199/285 
+  Verifying        : perl-Math-BigInt-FastCalc-0.500.600-6.el8.x86_64   200/285 
+  Verifying        : perl-Math-BigRat-0.2614-1.el8.noarch               201/285 
+  Verifying        : perl-Math-Complex-1.59-421.el8.noarch              202/285 
+  Verifying        : perl-Memoize-1.03-421.el8.noarch                   203/285 
+  Verifying        : perl-MIME-Base64-3.15-396.el8.x86_64               204/285 
+  Verifying        : perl-Module-Build-2:0.42.24-5.el8.noarch           205/285 
+  Verifying        : perl-Module-CoreList-1:5.20181130-1.el8.noarch     206/285 
+  Verifying        : perl-Module-CoreList-tools-1:5.20181130-1.el8.no   207/285 
+  Verifying        : perl-Module-Load-1:0.32-395.el8.noarch             208/285 
+  Verifying        : perl-Module-Load-Conditional-0.68-395.el8.noarch   209/285 
+  Verifying        : perl-Module-Loaded-1:0.08-421.el8.noarch           210/285 
+  Verifying        : perl-Module-Metadata-1.000033-395.el8.noarch       211/285 
+  Verifying        : perl-Mozilla-CA-20160104-7.module+el8.3.0+6498+9   212/285 
+  Verifying        : perl-MRO-Compat-0.13-4.el8.noarch                  213/285 
+  Verifying        : perl-Net-Ping-2.55-421.el8.noarch                  214/285 
+  Verifying        : perl-Net-SSLeay-1.88-2.module+el8.6.0+13392+f089   215/285 
+  Verifying        : perl-open-1.11-421.el8.noarch                      216/285 
+  Verifying        : perl-Package-Generator-1.106-11.el8.noarch         217/285 
+  Verifying        : perl-Params-Check-1:0.38-395.el8.noarch            218/285 
+  Verifying        : perl-Params-Util-1.07-22.el8.x86_64                219/285 
+  Verifying        : perl-parent-1:0.237-1.el8.noarch                   220/285 
+  Verifying        : perl-PathTools-3.74-1.el8.x86_64                   221/285 
+  Verifying        : perl-perlfaq-5.20180605-1.el8.noarch               222/285 
+  Verifying        : perl-PerlIO-via-QuotedPrint-0.08-395.el8.noarch    223/285 
+  Verifying        : perl-Perl-OSType-1.010-396.el8.noarch              224/285 
+  Verifying        : perl-Pod-Checker-4:1.73-395.el8.noarch             225/285 
+  Verifying        : perl-Pod-Escapes-1:1.07-395.el8.noarch             226/285 
+  Verifying        : perl-Pod-Html-1.22.02-421.el8.noarch               227/285 
+  Verifying        : perl-podlators-4.11-1.el8.noarch                   228/285 
+  Verifying        : perl-Pod-Parser-1.63-396.el8.noarch                229/285 
+  Verifying        : perl-Pod-Perldoc-3.28-396.el8.noarch               230/285 
+  Verifying        : perl-Pod-Simple-1:3.35-395.el8.noarch              231/285 
+  Verifying        : perl-Pod-Usage-4:1.69-395.el8.noarch               232/285 
+  Verifying        : perl-Scalar-List-Utils-3:1.49-2.el8.x86_64         233/285 
+  Verifying        : perl-SelfLoader-1.23-421.el8.noarch                234/285 
+  Verifying        : perl-Socket-4:2.027-3.el8.x86_64                   235/285 
+  Verifying        : perl-Software-License-0.103013-2.el8.noarch        236/285 
+  Verifying        : perl-srpm-macros-1-25.el8.noarch                   237/285 
+  Verifying        : perl-Storable-1:3.11-3.el8.x86_64                  238/285 
+  Verifying        : perl-Sub-Exporter-0.987-15.el8.noarch              239/285 
+  Verifying        : perl-Sub-Install-0.928-14.el8.noarch               240/285 
+  Verifying        : perl-Sys-Syslog-0.35-397.el8.x86_64                241/285 
+  Verifying        : perl-Term-ANSIColor-4.06-396.el8.noarch            242/285 
+  Verifying        : perl-Term-Cap-1.17-395.el8.noarch                  243/285 
+  Verifying        : perl-TermReadKey-2.37-7.el8.x86_64                 244/285 
+  Verifying        : perl-Test-1.30-421.el8.noarch                      245/285 
+  Verifying        : perl-Test-Harness-1:3.42-1.el8.noarch              246/285 
+  Verifying        : perl-Test-Simple-1:1.302135-1.el8.noarch           247/285 
+  Verifying        : perl-Text-Balanced-2.03-395.el8.noarch             248/285 
+  Verifying        : perl-Text-Diff-1.45-2.el8.noarch                   249/285 
+  Verifying        : perl-Text-Glob-0.11-4.el8.noarch                   250/285 
+  Verifying        : perl-Text-ParseWords-3.30-395.el8.noarch           251/285 
+  Verifying        : perl-Text-Tabs+Wrap-2013.0523-395.el8.noarch       252/285 
+  Verifying        : perl-Text-Template-1.51-1.el8.noarch               253/285 
+  Verifying        : perl-Thread-Queue-3.13-1.el8.noarch                254/285 
+  Verifying        : perl-threads-1:2.21-2.el8.x86_64                   255/285 
+  Verifying        : perl-threads-shared-1.58-2.el8.x86_64              256/285 
+  Verifying        : perl-Time-HiRes-4:1.9758-2.el8.x86_64              257/285 
+  Verifying        : perl-Time-Local-1:1.280-1.el8.noarch               258/285 
+  Verifying        : perl-Time-Piece-1.31-421.el8.x86_64                259/285 
+  Verifying        : perl-Unicode-Collate-1.25-2.el8.x86_64             260/285 
+  Verifying        : perl-Unicode-Normalize-1.25-396.el8.x86_64         261/285 
+  Verifying        : perl-URI-1.73-3.el8.noarch                         262/285 
+  Verifying        : perl-utils-5.26.3-421.el8.noarch                   263/285 
+  Verifying        : perl-version-6:0.99.24-1.el8.x86_64                264/285 
+  Verifying        : python38-3.8.12-1.module+el8.6.0+12642+c3710b74.   265/285 
+  Verifying        : python38-devel-3.8.12-1.module+el8.6.0+12642+c37   266/285 
+  Verifying        : python38-libs-3.8.12-1.module+el8.6.0+12642+c371   267/285 
+  Verifying        : python38-pip-19.3.1-5.module+el8.6.0+13002+70cfc   268/285 
+  Verifying        : python38-pip-wheel-19.3.1-5.module+el8.6.0+13002   269/285 
+  Verifying        : python38-setuptools-41.6.0-5.module+el8.5.0+1220   270/285 
+  Verifying        : python38-setuptools-wheel-41.6.0-5.module+el8.5.   271/285 
+  Verifying        : python3-pyparsing-2.1.10-7.el8.noarch              272/285 
+  Verifying        : python3-rpm-macros-3-41.el8.noarch                 273/285 
+  Verifying        : python-rpm-macros-3-41.el8.noarch                  274/285 
+  Verifying        : python-srpm-macros-3-41.el8.noarch                 275/285 
+  Verifying        : qt5-srpm-macros-5.15.2-1.el8.noarch                276/285 
+  Verifying        : rabbitmq-server-3.12.8-1.el8.noarch                277/285 
+  Verifying        : redhat-rpm-config-131-1.el8.noarch                 278/285 
+  Verifying        : redis-5.0.3-5.module+el8.4.0+12927+b9845322.x86_   279/285 
+  Verifying        : rust-srpm-macros-5-2.el8.noarch                    280/285 
+  Verifying        : st2-3.8.0-2.x86_64                                 281/285 
+  Verifying        : st2chatops-3.8.0-1.x86_64                          282/285 
+  Verifying        : st2web-3.8.0-1.x86_64                              283/285 
+  Verifying        : systemtap-sdt-devel-4.6-4.el8.x86_64               284/285 
+  Verifying        : zlib-devel-1.2.11-21.el8_7.x86_64                  285/285 
+Installed products updated.
+
+Downgraded:
+  audit-3.0.7-2.el8.2.x86_64                                                    
+  audit-libs-3.0.7-2.el8.2.x86_64                                               
+  curl-7.61.1-22.el8_6.4.x86_64                                                 
+  dnf-plugins-core-4.0.21-11.el8.noarch                                         
+  e2fsprogs-1.45.6-4.el8.x86_64                                                 
+  e2fsprogs-libs-1.45.6-4.el8.x86_64                                            
+  emacs-filesystem-1:26.1-7.el8.noarch                                          
+  glibc-2.28-225.el8.x86_64                                                     
+  glibc-common-2.28-225.el8.x86_64                                              
+  glibc-gconv-extra-2.28-225.el8.x86_64                                         
+  glibc-langpack-en-2.28-225.el8.x86_64                                         
+  krb5-libs-1.18.2-14.el8.x86_64                                                
+  libX11-1.6.8-5.el8.x86_64                                                     
+  libX11-common-1.6.8-5.el8.noarch                                              
+  libcom_err-1.45.6-4.el8.x86_64                                                
+  libcurl-7.61.1-22.el8_6.4.x86_64                                              
+  libffi-3.1-23.el8.x86_64                                                      
+  libselinux-2.9-5.el8.x86_64                                                   
+  libselinux-utils-2.9-5.el8.x86_64                                             
+  libsemanage-2.9-8.el8.x86_64                                                  
+  libss-1.45.6-4.el8.x86_64                                                     
+  libverto-0.3.0-5.el8.x86_64                                                   
+  platform-python-pip-9.0.3-22.el8.noarch                                       
+  platform-python-setuptools-39.2.0-6.el8.noarch                                
+  policycoreutils-2.9-16.el8.x86_64                                             
+  policycoreutils-python-utils-2.9-16.el8.noarch                                
+  python3-audit-3.0.7-2.el8.2.x86_64                                            
+  python3-dnf-plugins-core-4.0.21-11.el8.noarch                                 
+  python3-libselinux-2.9-5.el8.x86_64                                           
+  python3-libsemanage-2.9-8.el8.x86_64                                          
+  python3-pip-9.0.3-22.el8.noarch                                               
+  python3-policycoreutils-2.9-16.el8.noarch                                     
+  python3-setools-4.3.0-3.el8.x86_64                                            
+  python3-setuptools-39.2.0-6.el8.noarch                                        
+  yum-utils-4.0.21-11.el8.noarch                                                
+  zlib-1.2.11-21.el8_7.x86_64                                                   
+Installed:
+  apr-1.6.3-12.el8.x86_64                                                       
+  apr-util-1.6.1-6.el8.x86_64                                                   
+  apr-util-bdb-1.6.1-6.el8.x86_64                                               
+  apr-util-openssl-1.6.1-6.el8.x86_64                                           
+  crudini-0.9.3-1.el8.noarch                                                    
+  dejavu-sans-fonts-2.35-7.el8.noarch                                           
+  dwz-0.12-10.el8.x86_64                                                        
+  efi-srpm-macros-3-3.el8.noarch                                                
+  epel-release-8-19.el8.noarch                                                  
+  erlang-25.3.2.7-1.el8.x86_64                                                  
+  gd-2.2.5-7.el8.x86_64                                                         
+  ghc-srpm-macros-1.4.2-7.el8.noarch                                            
+  git-2.31.1-2.el8.x86_64                                                       
+  git-core-2.31.1-2.el8.x86_64                                                  
+  git-core-doc-2.31.1-2.el8.noarch                                              
+  go-srpm-macros-2-17.el8.noarch                                                
+  httpd-tools-2.4.37-47.module+el8.6.0+15654+427eba2e.2.x86_64                  
+  jbigkit-libs-2.1-14.el8.x86_64                                                
+  keyutils-libs-devel-1.5.10-9.el8.x86_64                                       
+  krb5-devel-1.18.2-14.el8.x86_64                                               
+  libXpm-3.5.12-8.el8.x86_64                                                    
+  libcom_err-devel-1.45.6-4.el8.x86_64                                          
+  libffi-devel-3.1-23.el8.x86_64                                                
+  libjpeg-turbo-1.5.3-12.el8.x86_64                                             
+  libkadm5-1.18.2-14.el8.x86_64                                                 
+  libselinux-devel-2.9-5.el8.x86_64                                             
+  libsepol-devel-2.9-3.el8.x86_64                                               
+  libtiff-4.0.9-21.el8.x86_64                                                   
+  libverto-devel-0.3.0-5.el8.x86_64                                             
+  libwebp-1.0.0-5.el8.x86_64                                                    
+  make-1:4.2.1-11.el8.x86_64                                                    
+  mongodb-org-4.0.28-1.el8.x86_64                                               
+  mongodb-org-mongos-4.0.28-1.el8.x86_64                                        
+  mongodb-org-server-4.0.28-1.el8.x86_64                                        
+  mongodb-org-shell-4.0.28-1.el8.x86_64                                         
+  mongodb-org-tools-4.0.28-1.el8.x86_64                                         
+  nginx-1:1.22.1-1.el8.ngx.x86_64                                               
+  nginx-debuginfo-1:1.22.1-1.el8.ngx.x86_64                                     
+  nginx-module-image-filter-1:1.22.1-1.el8.ngx.x86_64                           
+  nginx-module-njs-1:1.22.1+0.7.7-1.el8.ngx.x86_64                              
+  nginx-module-perl-1:1.22.1-1.el8.ngx.x86_64                                   
+  nginx-module-xslt-1:1.22.1-1.el8.ngx.x86_64                                   
+  nodejs-2:14.20.0-1nodesource.x86_64                                           
+  ocaml-srpm-macros-5-4.el8.noarch                                              
+  openblas-srpm-macros-2-2.el8.noarch                                           
+  openssl-devel-1:1.1.1k-9.el8_7.x86_64                                         
+  pcre2-devel-10.32-3.el8_6.x86_64                                              
+  pcre2-utf16-10.32-3.el8_6.x86_64                                              
+  pcre2-utf32-10.32-3.el8_6.x86_64                                              
+  perl-4:5.26.3-421.el8.x86_64                                                  
+  perl-Algorithm-Diff-1.1903-9.el8.noarch                                       
+  perl-Archive-Tar-2.30-1.el8.noarch                                            
+  perl-Archive-Zip-1.60-3.el8.noarch                                            
+  perl-Attribute-Handlers-0.99-421.el8.noarch                                   
+  perl-B-Debug-1.26-2.el8.noarch                                                
+  perl-CPAN-2.18-397.el8.noarch                                                 
+  perl-CPAN-Meta-2.150010-396.el8.noarch                                        
+  perl-CPAN-Meta-Requirements-2.140-396.el8.noarch                              
+  perl-CPAN-Meta-YAML-0.018-397.el8.noarch                                      
+  perl-Carp-1.42-396.el8.noarch                                                 
+  perl-Compress-Bzip2-2.26-6.el8.x86_64                                         
+  perl-Compress-Raw-Bzip2-2.081-1.el8.x86_64                                    
+  perl-Compress-Raw-Zlib-2.081-1.el8.x86_64                                     
+  perl-Config-Perl-V-0.30-1.el8.noarch                                          
+  perl-DB_File-1.842-1.el8.x86_64                                               
+  perl-Data-Dumper-2.167-399.el8.x86_64                                         
+  perl-Data-OptList-0.110-6.el8.noarch                                          
+  perl-Data-Section-0.200007-3.el8.noarch                                       
+  perl-Devel-PPPort-3.36-5.el8.x86_64                                           
+  perl-Devel-Peek-1.26-421.el8.x86_64                                           
+  perl-Devel-SelfStubber-1.06-421.el8.noarch                                    
+  perl-Devel-Size-0.81-2.el8.x86_64                                             
+  perl-Digest-1.17-395.el8.noarch                                               
+  perl-Digest-MD5-2.55-396.el8.x86_64                                           
+  perl-Digest-SHA-1:6.02-1.el8.x86_64                                           
+  perl-Encode-4:2.97-3.el8.x86_64                                               
+  perl-Encode-Locale-1.05-10.module+el8.3.0+6498+9eecfe51.noarch                
+  perl-Encode-devel-4:2.97-3.el8.x86_64                                         
+  perl-Env-1.04-395.el8.noarch                                                  
+  perl-Errno-1.28-421.el8.x86_64                                                
+  perl-Error-1:0.17025-2.el8.noarch                                             
+  perl-Exporter-5.72-396.el8.noarch                                             
+  perl-ExtUtils-CBuilder-1:0.280230-2.el8.noarch                                
+  perl-ExtUtils-Command-1:7.34-1.el8.noarch                                     
+  perl-ExtUtils-Embed-1.34-421.el8.noarch                                       
+  perl-ExtUtils-Install-2.14-4.el8.noarch                                       
+  perl-ExtUtils-MM-Utils-1:7.34-1.el8.noarch                                    
+  perl-ExtUtils-MakeMaker-1:7.34-1.el8.noarch                                   
+  perl-ExtUtils-Manifest-1.70-395.el8.noarch                                    
+  perl-ExtUtils-Miniperl-1.06-421.el8.noarch                                    
+  perl-ExtUtils-ParseXS-1:3.35-2.el8.noarch                                     
+  perl-File-Fetch-0.56-2.el8.noarch                                             
+  perl-File-HomeDir-1.002-4.el8.noarch                                          
+  perl-File-Path-2.15-2.el8.noarch                                              
+  perl-File-Temp-0.230.600-1.el8.noarch                                         
+  perl-File-Which-1.22-2.el8.noarch                                             
+  perl-Filter-2:1.58-2.el8.x86_64                                               
+  perl-Filter-Simple-0.94-2.el8.noarch                                          
+  perl-Getopt-Long-1:2.50-4.el8.noarch                                          
+  perl-Git-2.31.1-2.el8.noarch                                                  
+  perl-HTTP-Tiny-0.074-1.el8.noarch                                             
+  perl-IO-1.38-421.el8.x86_64                                                   
+  perl-IO-Compress-2.081-1.el8.noarch                                           
+  perl-IO-Socket-IP-0.39-5.el8.noarch                                           
+  perl-IO-Socket-SSL-2.066-4.module+el8.3.0+6446+594cad75.noarch                
+  perl-IO-Zlib-1:1.10-421.el8.noarch                                            
+  perl-IPC-Cmd-2:1.02-1.el8.noarch                                              
+  perl-IPC-SysV-2.07-397.el8.x86_64                                             
+  perl-IPC-System-Simple-1.25-17.el8.noarch                                     
+  perl-JSON-PP-1:2.97.001-3.el8.noarch                                          
+  perl-Locale-Codes-3.57-1.el8.noarch                                           
+  perl-Locale-Maketext-1.28-396.el8.noarch                                      
+  perl-Locale-Maketext-Simple-1:0.21-421.el8.noarch                             
+  perl-MIME-Base64-3.15-396.el8.x86_64                                          
+  perl-MRO-Compat-0.13-4.el8.noarch                                             
+  perl-Math-BigInt-1:1.9998.11-7.el8.noarch                                     
+  perl-Math-BigInt-FastCalc-0.500.600-6.el8.x86_64                              
+  perl-Math-BigRat-0.2614-1.el8.noarch                                          
+  perl-Math-Complex-1.59-421.el8.noarch                                         
+  perl-Memoize-1.03-421.el8.noarch                                              
+  perl-Module-Build-2:0.42.24-5.el8.noarch                                      
+  perl-Module-CoreList-1:5.20181130-1.el8.noarch                                
+  perl-Module-CoreList-tools-1:5.20181130-1.el8.noarch                          
+  perl-Module-Load-1:0.32-395.el8.noarch                                        
+  perl-Module-Load-Conditional-0.68-395.el8.noarch                              
+  perl-Module-Loaded-1:0.08-421.el8.noarch                                      
+  perl-Module-Metadata-1.000033-395.el8.noarch                                  
+  perl-Mozilla-CA-20160104-7.module+el8.3.0+6498+9eecfe51.noarch                
+  perl-Net-Ping-2.55-421.el8.noarch                                             
+  perl-Net-SSLeay-1.88-2.module+el8.6.0+13392+f0897f98.x86_64                   
+  perl-Package-Generator-1.106-11.el8.noarch                                    
+  perl-Params-Check-1:0.38-395.el8.noarch                                       
+  perl-Params-Util-1.07-22.el8.x86_64                                           
+  perl-PathTools-3.74-1.el8.x86_64                                              
+  perl-Perl-OSType-1.010-396.el8.noarch                                         
+  perl-PerlIO-via-QuotedPrint-0.08-395.el8.noarch                               
+  perl-Pod-Checker-4:1.73-395.el8.noarch                                        
+  perl-Pod-Escapes-1:1.07-395.el8.noarch                                        
+  perl-Pod-Html-1.22.02-421.el8.noarch                                          
+  perl-Pod-Parser-1.63-396.el8.noarch                                           
+  perl-Pod-Perldoc-3.28-396.el8.noarch                                          
+  perl-Pod-Simple-1:3.35-395.el8.noarch                                         
+  perl-Pod-Usage-4:1.69-395.el8.noarch                                          
+  perl-Scalar-List-Utils-3:1.49-2.el8.x86_64                                    
+  perl-SelfLoader-1.23-421.el8.noarch                                           
+  perl-Socket-4:2.027-3.el8.x86_64                                              
+  perl-Software-License-0.103013-2.el8.noarch                                   
+  perl-Storable-1:3.11-3.el8.x86_64                                             
+  perl-Sub-Exporter-0.987-15.el8.noarch                                         
+  perl-Sub-Install-0.928-14.el8.noarch                                          
+  perl-Sys-Syslog-0.35-397.el8.x86_64                                           
+  perl-Term-ANSIColor-4.06-396.el8.noarch                                       
+  perl-Term-Cap-1.17-395.el8.noarch                                             
+  perl-TermReadKey-2.37-7.el8.x86_64                                            
+  perl-Test-1.30-421.el8.noarch                                                 
+  perl-Test-Harness-1:3.42-1.el8.noarch                                         
+  perl-Test-Simple-1:1.302135-1.el8.noarch                                      
+  perl-Text-Balanced-2.03-395.el8.noarch                                        
+  perl-Text-Diff-1.45-2.el8.noarch                                              
+  perl-Text-Glob-0.11-4.el8.noarch                                              
+  perl-Text-ParseWords-3.30-395.el8.noarch                                      
+  perl-Text-Tabs+Wrap-2013.0523-395.el8.noarch                                  
+  perl-Text-Template-1.51-1.el8.noarch                                          
+  perl-Thread-Queue-3.13-1.el8.noarch                                           
+  perl-Time-HiRes-4:1.9758-2.el8.x86_64                                         
+  perl-Time-Local-1:1.280-1.el8.noarch                                          
+  perl-Time-Piece-1.31-421.el8.x86_64                                           
+  perl-URI-1.73-3.el8.noarch                                                    
+  perl-Unicode-Collate-1.25-2.el8.x86_64                                        
+  perl-Unicode-Normalize-1.25-396.el8.x86_64                                    
+  perl-autodie-2.29-396.el8.noarch                                              
+  perl-bignum-0.49-2.el8.noarch                                                 
+  perl-constant-1.33-396.el8.noarch                                             
+  perl-devel-4:5.26.3-421.el8.x86_64                                            
+  perl-encoding-4:2.22-3.el8.x86_64                                             
+  perl-experimental-0.019-2.el8.noarch                                          
+  perl-inc-latest-2:0.500-9.el8.noarch                                          
+  perl-interpreter-4:5.26.3-421.el8.x86_64                                      
+  perl-libnet-3.11-3.el8.noarch                                                 
+  perl-libnetcfg-4:5.26.3-421.el8.noarch                                        
+  perl-libs-4:5.26.3-421.el8.x86_64                                             
+  perl-local-lib-2.000024-2.el8.noarch                                          
+  perl-macros-4:5.26.3-421.el8.x86_64                                           
+  perl-open-1.11-421.el8.noarch                                                 
+  perl-parent-1:0.237-1.el8.noarch                                              
+  perl-perlfaq-5.20180605-1.el8.noarch                                          
+  perl-podlators-4.11-1.el8.noarch                                              
+  perl-srpm-macros-1-25.el8.noarch                                              
+  perl-threads-1:2.21-2.el8.x86_64                                              
+  perl-threads-shared-1.58-2.el8.x86_64                                         
+  perl-utils-5.26.3-421.el8.noarch                                              
+  perl-version-6:0.99.24-1.el8.x86_64                                           
+  python-rpm-macros-3-41.el8.noarch                                             
+  python-srpm-macros-3-41.el8.noarch                                            
+  python3-pyparsing-2.1.10-7.el8.noarch                                         
+  python3-rpm-macros-3-41.el8.noarch                                            
+  python38-3.8.12-1.module+el8.6.0+12642+c3710b74.x86_64                        
+  python38-devel-3.8.12-1.module+el8.6.0+12642+c3710b74.x86_64                  
+  python38-libs-3.8.12-1.module+el8.6.0+12642+c3710b74.x86_64                   
+  python38-pip-19.3.1-5.module+el8.6.0+13002+70cfc74a.noarch                    
+  python38-pip-wheel-19.3.1-5.module+el8.6.0+13002+70cfc74a.noarch              
+  python38-setuptools-41.6.0-5.module+el8.5.0+12205+a865257a.noarch             
+  python38-setuptools-wheel-41.6.0-5.module+el8.5.0+12205+a865257a.noarch       
+  qt5-srpm-macros-5.15.2-1.el8.noarch                                           
+  rabbitmq-server-3.12.8-1.el8.noarch                                           
+  redhat-rpm-config-131-1.el8.noarch                                            
+  redis-5.0.3-5.module+el8.4.0+12927+b9845322.x86_64                            
+  rust-srpm-macros-5-2.el8.noarch                                               
+  st2-3.8.0-2.x86_64                                                            
+  st2chatops-3.8.0-1.x86_64                                                     
+  st2web-3.8.0-1.x86_64                                                         
+  systemtap-sdt-devel-4.6-4.el8.x86_64                                          
+  zlib-devel-1.2.11-21.el8_7.x86_64                                             
+
+Complete!
+Moving back to the scripts directory
+Finished prerequisite steps and package installs
+20231201T165029+0000 ########################################################
+20231201T165029+0000           Installing st2 stable               
+20231201T165029+0000 ########################################################
+20231201T165035+0000 Extra Packages for Enterprise Linux 8 - x86_64   10 MB/s |  16 MB     00:01    
+20231201T165041+0000 Last metadata expiration check: 0:00:05 ago on Fri 01 Dec 2023 04:50:35 PM UTC.
+20231201T165048+0000 Dependencies resolved.
+20231201T165048+0000 Nothing to do.
+20231201T165048+0000 Complete!
+20231201T165055+0000 Created symlink /etc/systemd/system/multi-user.target.wants/rabbitmq-server.service → /usr/lib/systemd/system/rabbitmq-server.service.
+20231201T165056+0000 Adding user "stackstorm" ...
+20231201T165056+0000 Done. Don't forget to grant the user permissions to some virtual hosts! See 'rabbitmqctl help set_permissions' to learn more.
+20231201T165057+0000 Deleting user "guest" ...
+20231201T165058+0000 Setting tags for user "stackstorm" to [administrator] ...
+20231201T165059+0000 Setting permissions for user "stackstorm" in vhost "/" ...
+20231201T165106+0000 MongoDB shell version v4.0.28
+20231201T165106+0000 connecting to: mongodb://127.0.0.1:27017/?gssapiServiceName=mongodb
+20231201T165106+0000 Implicit session: session { "id" : UUID("0066fb44-9f55-4990-82de-e03fad601264") }
+20231201T165106+0000 MongoDB server version: 4.0.28
+20231201T165106+0000 switched to db admin
+20231201T165106+0000 Successfully added user: {
+20231201T165106+0000 	"user" : "admin",
+20231201T165106+0000 	"roles" : [
+20231201T165106+0000 		{
+20231201T165106+0000 			"role" : "userAdminAnyDatabase",
+20231201T165106+0000 			"db" : "admin"
+20231201T165106+0000 		}
+20231201T165106+0000 	]
+20231201T165106+0000 }
+20231201T165106+0000 bye
+20231201T165106+0000 MongoDB shell version v4.0.28
+20231201T165106+0000 connecting to: mongodb://127.0.0.1:27017/?gssapiServiceName=mongodb
+20231201T165106+0000 Implicit session: session { "id" : UUID("fff7eff5-d297-4467-a3cc-00dd9ce34704") }
+20231201T165106+0000 MongoDB server version: 4.0.28
+20231201T165106+0000 switched to db st2
+20231201T165106+0000 Successfully added user: {
+20231201T165106+0000 	"user" : "stackstorm",
+20231201T165106+0000 	"roles" : [
+20231201T165106+0000 		{
+20231201T165106+0000 			"role" : "readWrite",
+20231201T165106+0000 			"db" : "st2"
+20231201T165106+0000 		}
+20231201T165106+0000 	]
+20231201T165106+0000 }
+20231201T165106+0000 bye
+20231201T165107+0000 Created symlink /etc/systemd/system/multi-user.target.wants/redis.service → /usr/lib/systemd/system/redis.service.
+20231201T165109+0000 ##### st2 components status #####
+20231201T165109+0000 st2actionrunner PID: 36891
+20231201T165109+0000 st2actionrunner PID: 36893
+20231201T165109+0000 st2actionrunner PID: 36895
+20231201T165109+0000 st2actionrunner PID: 36897
+20231201T165109+0000 st2actionrunner PID: 36899
+20231201T165109+0000 st2actionrunner PID: 36901
+20231201T165109+0000 st2actionrunner PID: 36903
+20231201T165109+0000 st2actionrunner PID: 36905
+20231201T165109+0000 st2actionrunner PID: 36907
+20231201T165109+0000 st2actionrunner PID: 36909
+20231201T165109+0000 st2api PID: 36913
+20231201T165109+0000 st2stream PID: 36916
+20231201T165109+0000 st2auth PID: 36919
+20231201T165109+0000 st2garbagecollector PID: 36922
+20231201T165109+0000 st2notifier PID: 36925
+20231201T165109+0000 st2rulesengine PID: 36928
+20231201T165110+0000 st2sensorcontainer PID: 36931
+20231201T165110+0000 st2chatops is not running.
+20231201T165110+0000 st2timersengine PID: 36943
+20231201T165110+0000 st2workflowengine PID: 36946
+20231201T165110+0000 st2scheduler PID: 36951
+20231201T165110+0000 Registering content...[flags = --config-file /etc/st2/st2.conf --register-all]
+20231201T165111+0000 2023-12-01 16:51:11,177 INFO [-] Connecting to database "st2" @ "127.0.0.1:27017" as user "stackstorm".
+20231201T165111+0000 2023-12-01 16:51:11,209 INFO [-] Successfully connected to database "st2" @ "127.0.0.1:27017" as user "stackstorm".
+20231201T165124+0000 2023-12-01 16:51:24,752 INFO [-] =========================================================
+20231201T165124+0000 2023-12-01 16:51:24,752 INFO [-] ############## Registering triggers #####################
+20231201T165124+0000 2023-12-01 16:51:24,752 INFO [-] =========================================================
+20231201T165124+0000 2023-12-01 16:51:24,987 INFO [-] Registered 0 triggers.
+20231201T165124+0000 2023-12-01 16:51:24,987 INFO [-] =========================================================
+20231201T165124+0000 2023-12-01 16:51:24,987 INFO [-] ############## Registering sensors ######################
+20231201T165124+0000 2023-12-01 16:51:24,987 INFO [-] =========================================================
+20231201T165125+0000 2023-12-01 16:51:25,025 INFO [-] Registered 1 sensors.
+20231201T165125+0000 2023-12-01 16:51:25,025 INFO [-] 0 sensors had their metadata overridden.
+20231201T165125+0000 2023-12-01 16:51:25,025 INFO [-] =========================================================
+20231201T165125+0000 2023-12-01 16:51:25,025 INFO [-] ############## Registering runners ######################
+20231201T165125+0000 2023-12-01 16:51:25,025 INFO [-] =========================================================
+20231201T165126+0000 2023-12-01 16:51:26,376 INFO [-] Registered 14 runners.
+20231201T165126+0000 2023-12-01 16:51:26,376 INFO [-] =========================================================
+20231201T165126+0000 2023-12-01 16:51:26,376 INFO [-] ############## Registering actions ######################
+20231201T165126+0000 2023-12-01 16:51:26,376 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,530 INFO [-] Registered 57 actions.
+20231201T165128+0000 2023-12-01 16:51:28,530 INFO [-] 0 actions had their metadata overridden.
+20231201T165128+0000 2023-12-01 16:51:28,530 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,530 INFO [-] ############## Registering rules ########################
+20231201T165128+0000 2023-12-01 16:51:28,530 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,867 INFO [-] Registered 2 rules.
+20231201T165128+0000 2023-12-01 16:51:28,867 INFO [-] 0 rules had their metadata overridden.
+20231201T165128+0000 2023-12-01 16:51:28,867 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,867 INFO [-] ############## Registering aliases ######################
+20231201T165128+0000 2023-12-01 16:51:28,867 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,915 INFO [-] Registered 4 aliases.
+20231201T165128+0000 2023-12-01 16:51:28,915 INFO [-] 0 aliases had their metadata overridden.
+20231201T165128+0000 2023-12-01 16:51:28,915 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,915 INFO [-] ############## Registering policy types #################
+20231201T165128+0000 2023-12-01 16:51:28,915 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,941 INFO [-] Registered 3 policy types.
+20231201T165128+0000 2023-12-01 16:51:28,941 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,941 INFO [-] ############## Registering policies #####################
+20231201T165128+0000 2023-12-01 16:51:28,941 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,942 INFO [-] Registered 0 policies.
+20231201T165128+0000 2023-12-01 16:51:28,942 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,942 INFO [-] ############## Registering configs ######################
+20231201T165128+0000 2023-12-01 16:51:28,942 INFO [-] =========================================================
+20231201T165128+0000 2023-12-01 16:51:28,942 INFO [-] Registered 0 configs.
+20231201T165129+0000 ##### st2 components status #####
+20231201T165129+0000 st2actionrunner PID: 36891
+20231201T165129+0000 st2actionrunner PID: 36893
+20231201T165129+0000 st2actionrunner PID: 36895
+20231201T165129+0000 st2actionrunner PID: 36897
+20231201T165129+0000 st2actionrunner PID: 36899
+20231201T165129+0000 st2actionrunner PID: 36901
+20231201T165129+0000 st2actionrunner PID: 36903
+20231201T165129+0000 st2actionrunner PID: 36905
+20231201T165129+0000 st2actionrunner PID: 36907
+20231201T165129+0000 st2actionrunner PID: 36909
+20231201T165129+0000 st2api PID: 36913
+20231201T165129+0000 st2api PID: 37070
+20231201T165129+0000 st2stream PID: 36916
+20231201T165129+0000 st2stream PID: 37071
+20231201T165129+0000 st2auth PID: 36919
+20231201T165129+0000 st2auth PID: 37063
+20231201T165129+0000 st2garbagecollector PID: 36922
+20231201T165129+0000 st2notifier PID: 36925
+20231201T165129+0000 st2rulesengine PID: 36928
+20231201T165129+0000 st2sensorcontainer PID: 36931
+20231201T165129+0000 st2chatops is not running.
+20231201T165129+0000 st2timersengine PID: 36943
+20231201T165129+0000 st2workflowengine PID: 36946
+20231201T165129+0000 st2scheduler PID: 36951
+20231201T165129+0000 uid=1002(stanley) gid=1002(stanley) groups=1002(stanley)
+20231201T165130+0000 Generating public/private rsa key pair.
+20231201T165130+0000 Your identification has been saved in /home/stanley/.ssh/stanley_rsa.
+20231201T165130+0000 Your public key has been saved in /home/stanley/.ssh/stanley_rsa.pub.
+20231201T165130+0000 The key fingerprint is:
+20231201T165130+0000 SHA256:d9+009WyY9gRWOD+onkI10JE9iwPzoRssX8itxAWvI4 root@BAOdevVM04
+20231201T165130+0000 The key's randomart image is:
+20231201T165130+0000 +---[RSA 3072]----+
+20231201T165130+0000 |       .o.o ...  |
+20231201T165130+0000 |       ..*.+ o   |
+20231201T165130+0000 |        Bo+ = .  |
+20231201T165130+0000 |       o.*.=   ..|
+20231201T165130+0000 |       oS.B.= o +|
+20231201T165130+0000 |      E o=o=.= *+|
+20231201T165130+0000 |         o.oo Boo|
+20231201T165130+0000 |          .o.o ..|
+20231201T165130+0000 |          o.     |
+20231201T165130+0000 +----[SHA256]-----+
+20231201T165130+0000 Adding password for user st2admin
+20231201T165136+0000 Key written to /etc/st2/keys/datastore_key.json. Secure the permissions so only StackStorm API process and StackStorm admin access the file.
+20231201T165147+0000 st2 3.8.0, on Python 3.8.12
+20231201T165147+0000 usage: st2 [-h] [--version] [--url BASE_URL] [--auth-url AUTH_URL]
+20231201T165147+0000            [--api-url API_URL] [--stream-url STREAM_URL]
+20231201T165147+0000            [--api-version API_VERSION] [--cacert CACERT]
+20231201T165147+0000            [--basic-auth BASIC_AUTH] [--config-file CONFIG_FILE]
+20231201T165147+0000            [--print-config] [--skip-config] [--debug]
+20231201T165147+0000            {run,action,action-alias,auth,login,whoami,apikey,execution,inquiry,key,pack,policy,policy-type,rule,webhook,timer,runner,sensor,trace,trigger,trigger-instance,rule-enforcement,workflow,service-registry,role,role-assignment}
+20231201T165147+0000            ...
+20231201T165147+0000 
+20231201T165147+0000 CLI for StackStorm event-driven automation platform. https://stackstorm.com
+20231201T165147+0000 
+20231201T165147+0000 positional arguments:
+20231201T165147+0000   {run,action,action-alias,auth,login,whoami,apikey,execution,inquiry,key,pack,policy,policy-type,rule,webhook,timer,runner,sensor,trace,trigger,trigger-instance,rule-enforcement,workflow,service-registry,role,role-assignment}
+20231201T165147+0000     run                 Invoke an action manually.
+20231201T165147+0000     action              An activity that happens as a response to the external
+20231201T165148+0000                         event.
+20231201T165148+0000     action-alias        Action aliases.
+20231201T165148+0000     auth                Authenticate user and acquire access token.
+20231201T165148+0000     login               Authenticate user, acquire access token, and update
+20231201T165148+0000                         CLI config directory
+20231201T165148+0000     whoami              Display the currently authenticated user
+20231201T165148+0000     apikey              API Keys.
+20231201T165148+0000     execution           An invocation of an action.
+20231201T165148+0000     inquiry             Inquiries provide an opportunity to ask a question and
+20231201T165148+0000                         wait for a response in a workflow.
+20231201T165148+0000     key                 Key value pair is used to store commonly used
+20231201T165148+0000                         configuration for reuse in sensors, actions, and
+20231201T165148+0000                         rules.
+20231201T165148+0000     pack                A group of related integration resources: actions,
+20231201T165148+0000                         rules, and sensors.
+20231201T165148+0000     policy              Policy that is enforced on a resource.
+20231201T165148+0000     policy-type         Type of policy that can be applied to resources.
+20231201T165148+0000     rule                A specification to invoke an "action" on a "trigger"
+20231201T165148+0000                         selectively based on some criteria.
+20231201T165148+0000     webhook             Webhooks.
+20231201T165148+0000     timer               Timers.
+20231201T165148+0000     runner              Runner is a type of handler for a specific class of
+20231201T165148+0000                         actions.
+20231201T165148+0000     sensor              An adapter which allows you to integrate StackStorm
+20231201T165148+0000                         with external system.
+20231201T165148+0000     trace               A group of executions, rules and triggerinstances that
+20231201T165148+0000                         are related.
+20231201T165148+0000     trigger             An external event that is mapped to a st2 input. It is
+20231201T165148+0000                         the st2 invocation point.
+20231201T165148+0000     trigger-instance    Actual instances of triggers received by st2.
+20231201T165148+0000     rule-enforcement    Models that represent enforcement of rules.
+20231201T165148+0000     workflow            Commands for workflow authoring related operations.
+20231201T165148+0000                         Only orquesta workflows are supported.
+20231201T165148+0000     service-registry    Service registry group and membership related
+20231201T165148+0000                         commands.
+20231201T165148+0000     role                RBAC roles.
+20231201T165148+0000     role-assignment     RBAC role assignments.
+20231201T165148+0000 
+20231201T165148+0000 optional arguments:
+20231201T165148+0000   -h, --help            show this help message and exit
+20231201T165148+0000   --version             show program's version number and exit
+20231201T165148+0000   --url BASE_URL        Base URL for the API servers. Assumes all servers use
+20231201T165148+0000                         the same base URL and default ports are used. Get
+20231201T165148+0000                         ST2_BASE_URL from the environment variables by
+20231201T165148+0000                         default.
+20231201T165148+0000   --auth-url AUTH_URL   URL for the authentication service. Get ST2_AUTH_URL
+20231201T165148+0000                         from the environment variables by default.
+20231201T165148+0000   --api-url API_URL     URL for the API server. Get ST2_API_URL from the
+20231201T165148+0000                         environment variables by default.
+20231201T165148+0000   --stream-url STREAM_URL
+20231201T165148+0000                         URL for the stream endpoint. Get ST2_STREAM_URLfrom
+20231201T165148+0000                         the environment variables by default.
+20231201T165148+0000   --api-version API_VERSION
+20231201T165148+0000                         API version to use. Get ST2_API_VERSION from the
+20231201T165148+0000                         environment variables by default.
+20231201T165148+0000   --cacert CACERT       Path to the CA cert bundle for the SSL endpoints. Get
+20231201T165148+0000                         ST2_CACERT from the environment variables by default.
+20231201T165148+0000                         If this is not provided, then SSL cert will not be
+20231201T165148+0000                         verified.
+20231201T165148+0000   --basic-auth BASIC_AUTH
+20231201T165148+0000                         Optional additional basic auth credentials used to
+20231201T165148+0000                         authenticate
+20231201T165148+0000   --config-file CONFIG_FILE
+20231201T165148+0000                         Path to the CLI config file
+20231201T165148+0000   --print-config        Parse the config file and print the values
+20231201T165148+0000   --skip-config         Don't parse and use the CLI config file
+20231201T165148+0000   --debug               Enable debug mode
+20231201T165148+0000 +----------+----------------------------------+
+20231201T165148+0000 | Property | Value                            |
+20231201T165148+0000 +----------+----------------------------------+
+20231201T165148+0000 | user     | st2admin                         |
+20231201T165148+0000 | token    | 2f7f9ae8cbc94a81a00ca6effacfd436 |
+20231201T165148+0000 | expiry   | 2023-12-02T16:51:48.194812Z      |
+20231201T165148+0000 +----------+----------------------------------+
+20231201T165149+0000 +---------------------+------+------------------------------------------------------+
+20231201T165149+0000 | ref                 | pack | description                                          |
+20231201T165149+0000 +---------------------+------+------------------------------------------------------+
+20231201T165149+0000 | core.announcement   | core | Action that broadcasts the announcement to all       |
+20231201T165149+0000 |                     |      | stream consumers.                                    |
+20231201T165149+0000 | core.ask            | core | Action for initiating an Inquiry (usually in a       |
+20231201T165149+0000 |                     |      | workflow)                                            |
+20231201T165149+0000 | core.echo           | core | Action that executes the Linux echo command on the   |
+20231201T165149+0000 |                     |      | localhost.                                           |
+20231201T165149+0000 | core.error          | core | Action that executes the Linux echo command (to      |
+20231201T165149+0000 |                     |      | stderr) on the localhost.                            |
+20231201T165149+0000 | core.http           | core | Action that performs an http request.                |
+20231201T165149+0000 | core.inject_trigger | core | Action which injects a new trigger in the system.    |
+20231201T165149+0000 | core.local          | core | Action that executes an arbitrary Linux command on   |
+20231201T165149+0000 |                     |      | the localhost.                                       |
+20231201T165149+0000 | core.local_sudo     | core | Action that executes an arbitrary Linux command on   |
+20231201T165149+0000 |                     |      | the localhost.                                       |
+20231201T165149+0000 | core.noop           | core | Action that does nothing                             |
+20231201T165149+0000 | core.pause          | core | Action to pause current thread of workflow/sub-      |
+20231201T165149+0000 |                     |      | workflow.                                            |
+20231201T165149+0000 | core.remote         | core | Action to execute arbitrary linux command remotely.  |
+20231201T165149+0000 | core.remote_sudo    | core | Action to execute arbitrary linux command remotely.  |
+20231201T165149+0000 | core.sendmail       | core | This sends an email                                  |
+20231201T165149+0000 | core.uuid           | core | Generate a new UUID (default uuid4)                  |
+20231201T165149+0000 | core.winrm_cmd      | core | Action to execute arbitrary Windows Command Prompt   |
+20231201T165149+0000 |                     |      | command remotely via WinRM.                          |
+20231201T165149+0000 | core.winrm_ps_cmd   | core | Action to execute arbitrary Windows PowerShell       |
+20231201T165149+0000 |                     |      | command remotely via WinRM.                          |
+20231201T165149+0000 +---------------------+------+------------------------------------------------------+
+20231201T165155+0000 ...
+20231201T165155+0000 id: 656a0f254bb7aefc7073ca08
+20231201T165155+0000 action.ref: core.local
+20231201T165155+0000 context.user: st2admin
+20231201T165155+0000 parameters: 
+20231201T165155+0000   cmd: date -R
+20231201T165155+0000 status: succeeded
+20231201T165155+0000 start_timestamp: Fri, 01 Dec 2023 16:51:49 UTC
+20231201T165155+0000 end_timestamp: Fri, 01 Dec 2023 16:51:54 UTC
+20231201T165155+0000 result: 
+20231201T165155+0000   failed: false
+20231201T165156+0000   return_code: 0
+20231201T165156+0000   stderr: ''
+20231201T165156+0000   stdout: Fri, 01 Dec 2023 16:51:54 +0000
+20231201T165156+0000   succeeded: true
+20231201T165156+0000 +--------------------------+------------+--------------+------------------------+------------------------+----------------------+
+20231201T165156+0000 | id                       | action.ref | context.user | status                 | start_timestamp        | end_timestamp        |
+20231201T165156+0000 +--------------------------+------------+--------------+------------------------+------------------------+----------------------+
+20231201T165156+0000 | 656a0f254bb7aefc7073ca08 | core.local | st2admin     | succeeded (5s elapsed) | Fri, 01 Dec 2023       | Fri, 01 Dec 2023     |
+20231201T165156+0000 |                          |            |              |                        | 16:51:49 UTC           | 16:51:54 UTC         |
+20231201T165156+0000 +--------------------------+------------+--------------+------------------------+------------------------+----------------------+
+20231201T165158+0000 .
+20231201T165158+0000 id: 656a0f2c4bb7aefc7073ca0b
+20231201T165158+0000 action.ref: core.remote
+20231201T165158+0000 context.user: st2admin
+20231201T165158+0000 parameters: 
+20231201T165158+0000   cmd: uname -a
+20231201T165158+0000   hosts: 127.0.0.1
+20231201T165158+0000 status: succeeded
+20231201T165158+0000 start_timestamp: Fri, 01 Dec 2023 16:51:56 UTC
+20231201T165158+0000 end_timestamp: Fri, 01 Dec 2023 16:51:57 UTC
+20231201T165158+0000 result: 
+20231201T165158+0000   127.0.0.1:
+20231201T165158+0000     failed: false
+20231201T165158+0000     return_code: 0
+20231201T165158+0000     stderr: ''
+20231201T165158+0000     stdout: 'Linux BAOdevVM04 4.18.0-513.5.1.el8_9.x86_64 #1 SMP Fri Sep 29 05:21:10 EDT 2023 x86_64 x86_64 x86_64 GNU/Linux'
+20231201T165158+0000     succeeded: true
+20231201T165159+0000 +--------------+-------+
+20231201T165159+0000 | Property     | Value |
+20231201T165159+0000 +--------------+-------+
+20231201T165159+0000 | actions      | 24    |
+20231201T165159+0000 | aliases      | 12    |
+20231201T165159+0000 | configs      | 0     |
+20231201T165159+0000 | policies     | 0     |
+20231201T165159+0000 | policy_types | 3     |
+20231201T165159+0000 | rule_types   | 2     |
+20231201T165159+0000 | rules        | 0     |
+20231201T165159+0000 | runners      | 14    |
+20231201T165159+0000 | sensors      | 0     |
+20231201T165159+0000 | triggers     | 0     |
+20231201T165159+0000 +--------------+-------+
+20231201T165200+0000 Generating a RSA private key
+20231201T165200+0000 ...............................................................+++++
+20231201T165200+0000 ................................................................+++++
+20231201T165200+0000 writing new private key to '/etc/ssl/st2/st2.key'
+20231201T165200+0000 -----
+20231201T165200+0000 creating conf directory
+20231201T165200+0000 Created symlink /etc/systemd/system/multi-user.target.wants/nginx.service → /usr/lib/systemd/system/nginx.service.
+20231201T165200+0000 success
+20231201T165201+0000 success
+20231201T165201+0000 ####################### WARNING ########################
+20231201T165201+0000 ######## Chatops requires manual configuration #########
+20231201T165201+0000 Edit /opt/stackstorm/chatops/st2chatops.env to specify  
+20231201T165201+0000 the adapter and settings hubot should use to connect to 
+20231201T165201+0000 the chat you're using. Don't forget to start the service
+20231201T165201+0000 afterwards:
+20231201T165201+0000 
+20231201T165201+0000   $ sudo service st2chatops restart
+20231201T165201+0000 
+20231201T165201+0000 For more information, please refer to documentation at  
+20231201T165201+0000 https://docs.stackstorm.com/install/rhel8.html#setup-chatops
+20231201T165201+0000 ########################################################
+20231201T165201+0000 
+20231201T165201+0000 
+20231201T165201+0000 ███████╗████████╗██████╗      ██████╗ ██╗  ██╗
+20231201T165201+0000 ██╔════╝╚══██╔══╝╚════██╗    ██╔═══██╗██║ ██╔╝
+20231201T165201+0000 ███████╗   ██║    █████╔╝    ██║   ██║█████╔╝ 
+20231201T165201+0000 ╚════██║   ██║   ██╔═══╝     ██║   ██║██╔═██╗ 
+20231201T165201+0000 ███████║   ██║   ███████╗    ╚██████╔╝██║  ██╗
+20231201T165201+0000 ╚══════╝   ╚═╝   ╚══════╝     ╚═════╝ ╚═╝  ╚═╝
+20231201T165201+0000 
+20231201T165201+0000   st2 is installed and ready to use.
+20231201T165201+0000 
+20231201T165201+0000 Head to https://YOUR_HOST_IP/ to access the WebUI
+20231201T165201+0000 
+20231201T165201+0000 Don't forget to dive into our documentation! Here are some resources
+20231201T165201+0000 for you:
+20231201T165201+0000 
+20231201T165201+0000 * Documentation  - https://docs.stackstorm.com
+20231201T165201+0000 * Pack Exchange - https://exchange.stackstorm.org/
+20231201T165201+0000 
+20231201T165201+0000 Thanks for installing StackStorm! Come visit us in our Slack Channel
+20231201T165201+0000 and tell us how it's going. We'd love to hear from you!
+20231201T165201+0000 http://stackstorm.com/community-signup

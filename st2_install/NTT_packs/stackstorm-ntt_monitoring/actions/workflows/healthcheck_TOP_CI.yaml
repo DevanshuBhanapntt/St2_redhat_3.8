@@ -1,0 +1,264 @@
+---
+#Change the company sysid in task: check_itsm_ci
+# Required datastore keys: database.HC.drivername, database.HC.host, database.HC.username,database.HC.password, company_sys_id, customer_abbr, top_ci_assignment_group
+version: 1.0
+
+description: This workflow insert the results of workflows into an SQL database
+
+input:
+
+  - customer
+  - database
+  - drivername
+  - host
+  - username
+  # - password
+  - port
+  - ThirtydayThreshold
+  - WeeklyThreshold
+  - DailyThreshold
+  - NumberOfCIs
+  - HealthCheckKey
+  - assignment_group
+  - company_sys_id
+
+vars:
+  - ci_sys_id: ""
+  - data_out: ""
+  - data_out_string: ""
+  - top_ci_data: ""
+  - value: 0
+  - count: 0
+  - list_length: 0
+  - ConfigurationItem: ""
+  - ConfigurationItemType: ""
+  - ConfigurationItemCategory: ""
+  - Customer: ""
+  - DemandSignalSource: ""
+  - DemandSignalType: ""
+  - MaxPerDay: ""
+  - MaxPerLast30Days: ""
+  - MaxPerWeek: ""
+  - TicketsPerDay: ""
+  - TicketsPerLast30Days: ""
+  - TicketsPerWeek: ""
+  - notes_data : ""
+  - worknotes: ""
+  - problem_ticket: ""
+  - problem_ticket_length: 0
+  - error_message: ""
+  - AuditResult: ""
+  - MetricResult: ""
+  - worklog: ""
+  - ProblemManager: ""
+  - ProblemTicket: ""
+  - ci_notes: ""
+
+output:
+  - data_out: "{{ctx().data_out}}"
+  - Customer: "{{ctx().Customer}}"
+  - list_length: "{{ctx().list_length}}"
+  - problem_ticket_length: "{{ctx().problem_ticket_length}}"
+  - ProblemManager : "{{ctx().ProblemManager}}"
+  - ProblemTicket: "{{ctx().ProblemTicket}}"
+
+tasks:
+
+  fetch_top_ci_details:
+    action: sql.query
+    input:
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: <% st2kv('system.database.HC.password', decrypt => true) %>
+      port: "{{ ctx().port }}"
+      username: "{{ ctx().username }}"
+      query: "EXEC spCalculateTicketVolumesByCI @ThirtydayThreshold='{{ ctx().ThirtydayThreshold }}',@WeeklyThreshold='{{ ctx().WeeklyThreshold }}',@DailyThreshold='{{ ctx().DailyThreshold }}',@Customer='{{ ctx().customer }}',@ConfigurationItem='%',@NumberOfCIs='{{ ctx().NumberOfCIs }}'"
+    next:
+      - when: "{{ succeeded() and (((result().result)|length)>0) }}"
+        publish: 
+          - data_out: "{{ (result().result)}}"
+          - list_length: "{{ ctx().data_out | length }}"
+          - AuditResult: "Audit Result"
+          - MetricResult: "P"
+          - worklog: "CI threshold breached"
+        do:
+          - insert_db
+          - check_loop
+      - when: "{{succeeded() and (((result().result)|length) ==0)}}"
+        publish:
+          - AuditResult: "Audit Result"
+          - MetricResult: "P"
+          - worklog: "CI threshold not breached"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  check_loop:
+    action: core.noop
+    next:
+     - when: "{{ succeeded() and (ctx().count < ctx().list_length) }}"
+       publish:
+         - ConfigurationItem: "{{ ((ctx().data_out)[ctx().count]).ConfigurationItem }}"
+         - ConfigurationItemType: "{{ ((ctx().data_out)[ctx().count]).ConfigurationItemType }}"
+         - Customer: "{{ ((ctx().data_out)[ctx().count]).Customer }}"
+         - MaxPerDay: "{{((ctx().data_out)[ctx().count]).MaxPerDay}}"
+         - MaxPerLast30Days: "{{((ctx().data_out)[ctx().count]).MaxPerLast30Days}}"
+         - MaxPerWeek: "{{((ctx().data_out)[ctx().count]).MaxPerWeek}}"
+         - TicketsPerDay: "{{((ctx().data_out)[ctx().count]).TicketsPerDay}}"
+         - TicketsPerLast30Days: "{{((ctx().data_out)[ctx().count]).TicketsPerLast30Days}}"
+         - TicketsPerWeek: "{{((ctx().data_out)[ctx().count]).TicketsPerWeek}}"
+         - count: "{{ (ctx().count) + 1 }}"
+       do:
+         - fetch_incidents
+
+  fetch_incidents:
+    action: sql.query
+    input:
+      database: "{{ ctx().database }}"
+      drivername: "{{ ctx().drivername }}"
+      host: "{{ ctx().host }}"
+      password: <% st2kv('system.database.HC.password', decrypt => true) %>
+      port: "{{ ctx().port }}"
+      username: "{{ ctx().username }}"
+      query: "EXEC [Automation Analytics].[dbo].[spHCCITicketAnalytics] @EndDate = NULL ,@Customer='{{ctx().Customer}}',@ConfigurationItem = '{{ctx().ConfigurationItem}}',@ConfigurationItemType = '{{ctx().ConfigurationItemType}}'"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - top_ci_data: "{{ result().result }}"
+        do:
+          - get_incident_details
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  get_incident_details:
+    action: ntt_monitoring.get_TOP_CI_incident_details
+    input:
+      inc_data: "{{ ctx().top_ci_data | join('$') }}"
+      daily_data: "{{ ctx().MaxPerDay | string }}, {{ ctx().TicketsPerDay | string }}"
+      weekly_data: "{{ ctx().MaxPerWeek | string }}, {{ ctx().TicketsPerWeek | string }}"
+      monthly_data: "{{ ctx().MaxPerLast30Days | string }}, {{ ctx().TicketsPerLast30Days | string }}"
+      config_item: "{{ ctx().ConfigurationItem }}"
+      customer: "{{ ctx().customer }}"
+    next:
+     - when: "{{ succeeded() }}"
+       publish:
+         - ci_notes: "{{ result().result.notes }}"
+       do:
+         - get_cmdb_ci
+
+  
+  get_cmdb_ci:
+    action: ntt_itsm.itsm_table_getentries
+    input:
+      schema_name: "cmdb_ci"
+      match_condition: "name={{ ctx().ConfigurationItem }}"
+    next:
+     - when: "{{ succeeded() and result().result | join(' ') != '' }}"
+       publish:
+         - ci_sys_id: "{{ result().result[0].sys_id }}"
+       do:
+         - check_itsm_ci
+     - when: "{{ succeeded() and result().result | join(' ') == '' }}"
+       do:
+         - check_loop
+     - when: "{{ failed() }}"
+       do:
+         - check_loop
+  
+  check_itsm_ci:
+    action: ntt_itsm.servicenow_problem_getentries
+    input:
+      company: "{{ ctx().company_sys_id }}"
+      short_description: "Health Check Automation has found a high ticket trend for Configured Item"
+      cmdb_ci: "{{ ctx().ci_sys_id }}"
+    next:
+     - when: "{{ succeeded() and (((result().result)|length)>0) }}"
+       publish:
+         - problem_ticket: "{{ result().result }}"
+         - problem_ticket_length: "{{ ctx().problem_ticket | length }}"
+         - AuditResult: "Problem Ticket exist"
+         - MetricResult: "P"
+         - worklog: "Already Existing"
+       do:
+         - insert_db
+
+     - when: "{{succeeded() and (((result().result)|length) ==0)}}"
+       publish:
+         - AuditResult: "Problem Ticket does not exist"
+         - MetricResult: "P"
+         - worklog: "Problem Record does not exist for {{ ctx().ConfigurationItem }}"
+       do:
+          - insert_db
+          - getProblemManager
+
+  getProblemManager:
+    action: ntt_itsm.servicenow_problem_getProblemManager
+    input:
+      query: "active=1^managerISNOTEMPTY^name={{ ctx().assignment_group }}"
+    next:
+     - when: "{{succeeded()}}"
+       publish:
+         - ProblemManager : "{{result().result}}"
+       do:
+         - create_problem_ticket
+
+  create_problem_ticket:
+    action: ntt_itsm.servicenow_problem_create
+    input:
+      assignment_group: "{{ ctx().assignment_group }}"
+      company: "{{ ctx().customer }}"
+      description: "Health Check Automation - 30 days Ticket Analysis. The ticket count has exceeded one or more of the predefined thresholds for CI - {{ ctx().ConfigurationItem }}.  {{ ctx().ci_notes }}"
+      short_description: "Health Check Automation has found a high ticket trend for Configured Item {{ ctx().ConfigurationItem }}."
+      u_problem_management_group: "{{ ctx().assignment_group }}"
+      u_initiation_reason: "Incident trend"
+      cmdb_ci: "{{ctx().ConfigurationItem}}"
+      u_problem_manager: "{{ctx().ProblemManager}}"
+      u_problem_owner: "{{ctx().ProblemManager}}"
+    next:
+     - when: "{{succeeded()}}"
+       publish:
+         - ProblemTicket: "{{result().result}}"
+       do:
+         - check_loop
+
+  insert_db:
+    action: ntt_monitoring.sql_insert_healthcheck
+    input:
+      HCAuditLog_data:
+        HealthCheckKey: "{{ctx().HealthCheckKey}}"
+        WhatWasPerformed: "Query database for TOP CI, create problem record for TOP CI"
+        Results: "{{ctx().AuditResult}}"
+        Environment: "Dev"
+      HCMetric_data:
+        HealthCheckKey: "{{ctx().HealthCheckKey}}"
+        Customer: "{{ctx().Customer}}"
+        ServiceTower: "All"
+        ConfigurationItem: "{{ ctx().ConfigurationItem}}"
+        ConfigurationItemType: "All"
+        HCPerformedBy: "Stackstorm"
+        Result: "{{ ctx().MetricResult}}"
+        TrackingTicketSource: "servicenow"
+        Environment: "Dev"
+        Notes: "{{ ctx().worklog }}"
+        AOJobID: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() and ctx().worklog == 'Already Existing' }}"        
+        publish:
+          - error_message: "{{ result().result }}"
+        do:
+          - check_loop
+      - when: "{{ succeeded() and ctx().worklog != 'Already Existing' }}"        
+        publish:
+          - error_message: "{{ result().result }}"
+        do:
+          - noop
+        
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Failed"
+        do:            
+          - fail

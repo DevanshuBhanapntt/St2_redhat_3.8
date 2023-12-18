@@ -1,0 +1,42 @@
+---
+description: "Retrieves the Windows OS name from Win32_OperatingSystem"
+enabled: true
+runner_type: winrm-ps-cmd
+name: windows_os_info_get
+pack: ntt_monitoring
+parameters:
+  cmd:
+    type: string
+    description: "Fully Qualified Domain Name of the VM"
+    default: "(Get-WmiObject Win32_OperatingSystem  -ComputerName localhost | Select-Object * -excludeproperty '_*','Properties','SystemProperties','Qualifiers','Scope').Name"
+  password:
+    type: string
+    description: "Password to log into the WSUS server"
+    immutable: false
+    default: "{{ st2kv.system.winrm.password | decrypt_kv }}"
+    secret: true
+  port:
+    type: integer
+    description: "Windows WSUS server port (this is a string because chatops fails when trying to cast an integer value)"
+    default: "{{ st2kv.system.winrm.port }}"
+  host:
+    type: string
+    description: "Windows WSUS server"
+    required: true
+  timeout:
+    type: integer
+    description: "Timeout to connect WSUS server"
+    default: "{{ st2kv.system.winrm.timeout_sec }}"
+  transport:
+    type: string
+    description: "Transport needed to log into the WSUS server"
+    default: "{{ st2kv.system.winrm.transport }}"
+  username:
+    type: string
+    description: "Username to log into the WSUS server"
+    immutable: false
+    default: "{{ st2kv.system.winrm.username }}"
+  verify_ssl_cert:
+    type: boolean
+    description: "Should verify cert of the Veeam server"
+    default: "{{ st2kv.system.winrm.ssl_verify }}"

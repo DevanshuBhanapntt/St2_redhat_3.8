@@ -1,0 +1,58 @@
+---
+
+name: healthcheck_MSG_Exchange
+pack: ntt_monitoring
+description: Verify the whitespace and backup threshold for exchange servers
+runner_type: orquesta
+entry_point: workflows/healthcheck_MSG_Exchange.yaml
+enabled: true
+parameters:
+
+  filepath:
+    type: string
+    description: "path of the report files on server"
+    required: true
+  filematchstring:
+    type: string
+    description: "sequence that matched the report file name"
+    required: true
+  configuration_item_name:
+    type: string
+    description: "Hostname of the server"
+    required: true
+    default: "172.24.96.9"
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  dns_domain:
+    type: string
+    description: "DNS domain to append to the hostname"
+    required: true
+    default: "{{ st2kv.system.winrm.dns_domain }}"
+  os_type:
+    type: string
+    description: "Operating system type of the server (windows, linux)"
+    required: true
+    default: "windows"
+  winrm_password_key:
+    type: string
+    description: "ST2 key that stores winrm password for bolt runs"
+    required: false
+  winrm_port_key:
+    type: integer
+    description: "ST2 key that stores winrm port for bolt runs"
+    required: false
+  winrm_username_key:
+    type: string
+    description: "ST2 key that stores winrm username for bolt runs"
+    required: false
+  winrm_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm ssl for bolt runs"
+    required: false
+  winrm_verify_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm verify_ssl for bolt runs"
+    required: false

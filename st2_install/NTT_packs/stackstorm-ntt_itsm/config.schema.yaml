@@ -1,0 +1,80 @@
+---
+itsm_tool:
+  description: "Name of the ITSM tool to use (servicenow or helix)"
+  type: "string"
+  required: true
+  pattern: "^(servicenow|helix)$"
+
+servicenow:
+  type: "object"
+  properties:
+    url:
+      description: "URL of the ServiceNow server"
+      type: "string"
+      required: true
+    username:
+      description: "Username to login to ServiceNow"
+      type: "string"
+      required: true
+    password:
+      description: "Password to login to ServiceNow"
+      type: "string"
+      required: true
+      secret: true
+    company_sys_id:
+      description: "Company sys ID in ServiceNow"
+      type: "string"
+      required: true
+
+helix:
+  type: "object"
+  properties:
+    url:
+      description: "URL of the Helix server"
+      type: "string"
+      required: true
+    username:
+      description: "Username to login to Helix"
+      type: "string"
+      required: true
+    password:
+      description: "Password to login to Helix"
+      type: "string"
+      required: true
+      secret: true
+    Automation_Login_ID:
+      description: "Automation Username to login to Helix"
+      type: "string"
+      required: true
+    Automation_Login_Name:
+      description: "Automation Username to login to Helix"
+      type: "string"
+      required: true
+    Status_Reason:
+      description: "Status reason for while resovle the incident"
+      type: "string"
+      required: true
+    Resolution_Category:
+      description: "Resolution Category for while resovle the incident"
+      type: "string"
+      required: true
+    Resolution_Category_Tier_2:
+      description: "Resolution Category Tier 2 for while resovle the incident"
+      type: "string"
+      required: true
+    Resolution_Category_Tier_3:
+      description: "Resolution Category Tier 3 for while resovle the incident"
+      type: "string"
+      required: true
+    Resolution_Method:
+      description: "Resolution_Method for while resovle the incident"
+      type: "string"
+      required: true
+    Generic_Categorization_Tier_1:
+      description: "Generic Categorization Tier 1 for while resovle the incident"
+      type: "string"
+      required: true
+    Company_name:
+      description: "company name for while pull the incident from itsm"
+      type: "string"
+      required: true

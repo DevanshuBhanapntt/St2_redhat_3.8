@@ -1,0 +1,24 @@
+---
+  name: "itsm_bgp_peer_check"
+  pack: "ntt_monitoring"
+  description: "Automation to perform BGP peer analysis"
+  enabled: true
+
+  trigger:
+    type: "ntt_itsm.bgp_peer_check"
+    parameters: {}
+
+  action:
+    ref: "ntt_monitoring.bgp_peer_check"
+    parameters:
+      assignment_group: "{{ trigger.assignment_group }}"
+      device_ip: "{{ trigger.device_ip }}"
+      device_name: "{{ trigger.device_name }}"
+      customer_name: "{{ trigger.customer_name }}"
+      detailed_desc: "{{ trigger.detailed_desc }}"
+      inc_number: "{{ trigger.inc_number }}"
+      inc_sys_id: "{{ trigger.inc_sys_id }}"
+      peer_ip: "{{ trigger.peer_ip }}"
+      short_desc: "{{ trigger.short_desc }}"
+      rec_short_desc: "{{ trigger.rec_short_desc }}"
+      rec_detailed_desc: "{{ trigger.rec_detailed_desc }}"

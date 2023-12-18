@@ -1,0 +1,1212 @@
+---
+version: 1.0
+description: "Checking Network peer Disappeared EIGRP"
+#Developer : Anitha Janarthanan
+#Platform: Network
+#Required datastore keys:  nmsservername('155.16.124.34,167.213.170.136'), snmp_string, snmp_version, network.username, network.password, entuity_pass, Eigrp_Rec_logic_days
+
+### this workflow uses enutity approach
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - username
+  - password
+  - version_command
+  - peer_ip
+  - nms_poll_data
+  - community_string
+  - configuration_item_name
+  - script_name
+  - rec_short_desc
+  - rec_detailed_desc
+
+vars:
+  - error_message: ""
+  - run_error_cmd_ping: false
+  - winrm_password_key: ""
+  - winrm_port_key: ""
+  - winrm_username_key: ""
+  - winrm_ssl_key: ""
+  - winrm_verify_ssl_key: ""
+  - run_error: ""
+  - end_timestamp: ""
+  - start_timestamp: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: ""
+  - login_status: ""
+  - stdout_data: ""
+  - update_kv_result: ""
+  - am_status: ""
+  - packets_received: ""
+  - ping_message: ""
+  - uptime_result: ""
+  - uptime_message: ""
+  - show_version_out: ""
+  - NXOS_result: ""
+  - NXOS_message: ""
+  - nms_host: "system.{{ ctx().nms_poll_data }}"
+  - worknote: ""
+  - snmp_output: ""
+  - device_os: ""
+  - route_command: ""
+  - eigrp_retry: 1
+  - subinterface: ""
+  - ping_peer_retry: 1
+  - single_quote: "'"
+  - recheck_total: 0
+  - no_support_count: 0
+  - invalid_input_count: 0
+  - ping_peer_command: ''
+  - os_out: ''
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - stdout_data: "{{ ctx().show_version_out }}"
+  - update_kv_result: "{{ ctx().update_kv_result }}"
+  - end_timestamp: "{{ ctx().end_timestamp }}"
+  - start_timestamp: "{{ ctx().start_timestamp }}"
+  - packets_received: "{{ ctx().packets_received }}"
+  - peer_ip: "{{ ctx().peer_ip }}"
+
+tasks:
+
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides: {}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          # entuity server username (or) stackstorm server username
+          - nw_clogin_script_server_username: "{{ result().result.nw_clogin_script_server_username }}"
+          # entuity server password (or) stackstorm server password
+          - nw_clogin_script_server_password: "{{ result().result.nw_clogin_script_server_password }}"
+          # clogin script path in entuity or stackstorm server
+          - nw_device_username: "{{ result().result.device_username }}"
+          - nw_device_password: "{{ result().result.device_password }}"
+          - nw_unreachable_to_ping_ping_count: "{{ result().result.nw_unreachable_to_ping_ping_count }}"
+          - nw_unreachable_to_ping_ping_recheck_limit: "{{ result().result.nw_unreachable_to_ping_ping_recheck_limit }}"
+          - nw_unreachable_to_ping_ping_sleep_interval: "{{ result().result.nw_unreachable_to_ping_ping_sleep_interval }}"
+          - nw_unreachable_to_ping_ping_success_packets_received: "{{ result().result.nw_unreachable_to_ping_ping_success_packets_received }}"
+          - nw_unreachable_to_ping_ping_packets_loss_threshold_per: "{{ result().result.nw_unreachable_to_ping_ping_packets_loss_threshold_per }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\nAutomation job id is: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Eigrp_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('rec_itsm_update_results').end_timestamp }}"
+        do:
+          - entuity_ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  entuity_ping_test:
+    action: core.remote
+    input:
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      cmd: "/bin/ping -c 10 -I {{ st2kv(ctx().nms_host).split(',')[1] }} {{ ctx().ci_address }}"  #st2kv(ctx().nms_host).split(',')[1] = Entuity interface ip
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('entuity_ping_test').end_timestamp }}"
+          - ping_output: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+          - packets_received: "{{ (result()[st2kv(ctx().nms_host).split(',')[0]].stdout.split(',')[1]).split('received')[0] | int }}"
+          - worknote: |
+              The device {{ ctx().ci_address }} is reachable. Checking ping success packets.
+
+          - run_error: false
+        do:
+          - itsm_update_results
+          - validate_ping_result
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+              Automation found the device {{ ctx().ci_address }} is not reachable. Automation will try to ping again after wait time.
+              
+              {{ ctx().error_message }}
+        do:
+          - itsm_update_results
+          - threshold_check_ping
+
+  threshold_check_ping:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: false
+      rerun_limit: "{{ ctx().nw_unreachable_to_ping_ping_recheck_limit | int  }}"
+      rerun_total: "{{ ctx().recheck_total | int }}"
+      sleep_interval: "{{ ctx().nw_unreachable_to_ping_ping_sleep_interval | int }}"
+      timeout: "{{ ctx().nw_unreachable_to_ping_ping_sleep_interval | int + 30 }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - entuity_ping_test
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - worknote: "Device {{ ctx().ci_address }} could not be reachable by ping. Automation is escalating the incident"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - worknote: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_escalate
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup  
+
+  validate_ping_result:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().packets_received >= 7) }}"
+        publish:
+          - worknote: "Ping Success! More than 7 Packets Received. Proceeding with EIGRP Analysis.  \n {{ ctx().ping_output }}"
+        do:
+          - itsm_update_results
+          - snmpwalk
+      - when: "{{ succeeded() and (ctx().packets_received < 7) }}"
+        publish:
+          - worknote: "Automation is escalating this incident as Ping failed! Less Then 7 Packet Received. \n {{ ctx().ping_output }}"
+        do:
+          - itsm_escalate
+
+  snmpwalk:
+    action: core.remote
+    input:
+      cmd: "snmpwalk -v 2c -c {{ ctx().community_string }} --clientaddr={{ st2kv(ctx().nms_host).split(',')[1] }}:161 {{ ctx().ci_address }} .1.3.6.1.2.1.1.1"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - snmp_output: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+          - os_out: |
+              Getting OS for device {{ ctx().ci_address }} via SNMP walk:
+              
+              {{ ctx().snmp_output }}
+        do:
+          - snmpwalk_validation
+      - when: "{{ failed() }}"
+        publish:
+          - worknote: "Automation is escalating this incident as snmp walk failed!. {{ ctx().ping_output }}"
+        do:
+          - itsm_escalate
+
+  snmpwalk_validation:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ('unknown host' in (ctx().snmp_output) | lower or 'no response from' in (ctx().snmp_output) | lower or 'timeout' in (ctx().snmp_output) | lower ) }}"
+        publish:
+          - worknote: "SNMP Walk failed! {{ ctx().snmp_output }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and ('unknown host' not in (ctx().snmp_output) | lower and 'no response from' not in (ctx().snmp_output) | lower and 'timeout' not in (ctx().snmp_output) | lower ) and ('IOS' in (ctx().snmp_output)) }}"
+        publish:
+          - worknote: |
+                    {{ ctx().os_out }}
+                    
+                    Device OS : IOS
+          - device_os: "IOS"
+        do:
+          - itsm_update_results
+          - check_connectivity
+      - when: "{{ succeeded() and ('unknown host' not in (ctx().snmp_output) | lower and 'no response from' not in (ctx().snmp_output) | lower and 'timeout' not in (ctx().snmp_output) | lower ) and ('NXOS' in (ctx().snmp_output)) }}"
+        publish:
+          - worknote: |
+                    {{ ctx().os_out }}
+                    
+                    Device OS : NXOS
+          - device_os: "NXOS"
+        do:
+          - itsm_update_results
+          - check_connectivity
+
+
+  check_connectivity:
+    action: core.remote
+    input:
+      cmd: "sleep 120 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'terminal length 0' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - login_status: "Login Successful"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+          - worknote: "Login to the device {{ ctx().ci_address }} is successful."
+        do:
+          - itsm_update_results
+          - check_show_version
+      - when: "{{ failed() }}"
+        publish:
+          - login_status: "Fail"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+          - worknote: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+        do:
+          - itsm_escalate_login_failed
+
+
+  check_show_version:
+     action: core.remote
+     input:
+       cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show version' {{ ctx().ci_address }}"
+       hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+       username: "{{ st2kv('system.network.username') }}"
+       password: <% st2kv('system.entuity_pass', decrypt => true) %>
+       timeout: 300
+     next:
+       - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+         publish:
+           #- show_version_out_temp: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+           #- show_version_out: "{{ ctx().show_version_out_temp | regex_match('(?<=how version).*') }}"
+           - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how version')-1 }}"
+           - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+           - show_version_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+           - worknote: |
+               Issuing "show version" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().show_version_out }}
+         do:
+           - itsm_update_results
+           - check_os_uptime
+       - when: "{{ (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) or failed() }}"
+         publish:
+           - show_version_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+           - worknote: |
+               Command "show version" failed on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().show_version_out }}
+               
+               RESULT: Command Failed.
+         do:
+           - itsm_escalate
+
+  check_os_uptime:
+    action: ntt_monitoring.get_os_uptime
+    input:
+      cmd_input: "{{ ctx().show_version_out }}"
+    next:
+      - when: "{{ succeeded() and result().result }}"
+        publish:
+          - worknote: "{{ result().result.uptime }}"
+        do:
+          - itsm_update_results
+          - get_route_command
+      - when: "{{ succeeded() and not result().result }}"
+        publish:
+          - worknote: "{{ result().result.uptime }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        publish:
+          - worknote: "{{ result().result.uptime }}"
+        do:
+          - itsm_escalate
+
+  get_route_command:
+    action: core.noop
+    next:
+      - when: "{{ ctx().device_os == 'IOS' }}"
+        publish:
+          - route_command: "show ip route 0.0.0.0 0.0.0.0"
+          - neighbor_command: "show ip eigrp interfaces"
+        do:
+          - execute_route_command
+      - when: "{{ ctx().device_os == 'NXOS' }}"
+        publish:
+          - route_command: "show ip route 0.0.0.0/0"
+          - neighbor_command: "show ip eigrp interfaces brief"
+
+  execute_route_command:
+     action: core.remote
+     input:
+       cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c '{{ ctx().route_command }}' {{ ctx().ci_address }}"
+       hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+       username: "{{ st2kv('system.network.username') }}"
+       password: <% st2kv('system.entuity_pass', decrypt => true) %>
+       timeout: 300
+     next:
+       - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+         publish:
+           - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how ip route')-1 }}"
+           - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+           - route_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+           - worknote: |
+               Issuing "{{ ctx().route_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().route_out }}
+         do:
+           - itsm_update_results
+           - execute_eigrp_neighbour          
+       - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+         publish:
+           - route_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+           - worknote: |
+               Issuing "{{ ctx().route_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().route_out }}
+               
+               RESULT: Command failed
+         do:
+           - itsm_escalate
+           
+  execute_eigrp_neighbour:
+     action: core.remote
+     input:
+       cmd: "sleep 120 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show ip eigrp neighbors' {{ ctx().ci_address }}"
+       hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+       username: "{{ st2kv('system.network.username') }}"
+       password: <% st2kv('system.entuity_pass', decrypt => true) %>
+       timeout: 300
+     next:
+       - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+         publish:
+           - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how ip eigrp')-1 }}"
+           - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+           - eigrp_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+           - worknote: |
+               Attempt: {{ ctx().eigrp_retry }}
+               Issuing "show ip eigrp neighbors" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().eigrp_out }}
+         do:
+           - itsm_update_results
+           - check_peer_in_neighbour
+       - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+         publish:
+           - eigrp_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+           - worknote: |
+               Issuing "show ip eigrp neighbors" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().eigrp_out }}
+               
+               RESULT: Command failed
+         do:
+           - itsm_escalate
+
+  check_peer_in_neighbour:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().eigrp_out }}\" | grep \"{{ ctx().peer_ip }}\""
+    next:
+      - when: "{{ succeeded() and result().stdout != '' }}"
+        publish:
+          - worknote: | 
+                   Matched values in previous command output:
+                   {{ result().stdout }}
+          - matched_peer: "{{ result().stdout | trim }}"
+        do:
+          - itsm_update_results
+          - get_subinterface
+      - when: "{{ (succeeded() or failed()) and result().stdout == '' and ctx().eigrp_retry < 4 }}"
+        publish:
+          - eigrp_retry: "{{ ctx().eigrp_retry + 1 }}"
+        do:
+          - add_delay 
+      - when: "{{ (succeeded() or failed()) and result().stdout == '' and ctx().eigrp_retry >= 4 }}"
+        publish:
+          - worknote: |
+                    Automation not able to find the peerip in show ip eigrp neighbors even after 15 minutes of delay. 
+        do:
+          - itsm_escalate          
+
+  add_delay:
+    action: core.pause
+    input:
+      max_pause: 300
+    next:
+      - when: "{{ succeeded() or failed() }}"
+        do:
+          - execute_eigrp_neighbour
+          
+  get_subinterface:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().matched_peer }}\" | awk '{print $3}'"
+    next:
+      - when: "{{ succeeded() and result().stdout != '' }}"
+        publish:
+          - subinterface: "{{ result().stdout | trim }}"
+        do:
+          - interface_cmd_execution
+      - when: "{{ (succeeded() or failed()) and result().stdout == '' and ctx().eigrp_retry >= 4 }}"
+        publish:
+          - worknote: |
+                    Automation not able to find the sub interface from 'show ip eigrp neighbors' command output. 
+                    Escalating the incident.
+        do:
+          - itsm_escalate  
+      
+  interface_cmd_execution:
+    action: core.remote
+    input:
+      cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show interface {{ ctx().subinterface }}' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how interface')-1 }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - interface_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - worknote: |
+               Issuing "show interface {{ ctx().subinterface }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().interface_out }}
+        do:
+          - itsm_update_results
+          - get_interface_ip
+      - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+        publish:
+          - interface_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+               Issuing "show interface {{ ctx().subinterface }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().interface_out }}
+               
+               RESULT: Command failed
+        do:
+          - itsm_escalate
+           
+  get_interface_ip:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().interface_out }}\" | grep 'Internet address is' | awk '{print $4}'"
+    next:
+      - when: "{{ succeeded() and result().stdout != '' }}"
+        publish:
+          - subinterface_ip: "{{ result().stdout.split('/')[0] }}"
+        do:
+          - topology_cmd_execution
+      - when: "{{ (succeeded() and result().stdout == '') or failed() }}"
+        publish:
+          - subinterface_ip: ""
+        do:
+          - topology_cmd_execution
+
+  topology_cmd_execution:
+    action: core.remote
+    input:
+      cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show ip eigrp topology 0.0.0.0/0' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how ip eigrp')-1 }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - topology_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - worknote: |
+               Issuing "show ip eigrp topology 0.0.0.0/0" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().topology_out }}
+        do:
+          - itsm_update_results
+          - arp_cmd_execution
+      - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+        publish:
+          - topology_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+               Issuing "show ip eigrp topology 0.0.0.0/0" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().topology_out }}
+               
+               RESULT: Command failed
+        do:
+           - itsm_escalate
+           
+  arp_cmd_execution:
+    action: core.remote
+    input:
+      cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show ip arp {{ ctx().peer_ip }}' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how ip arp')-1 }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - arp_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - worknote: |
+               Issuing "show ip arp {{ ctx().peer_ip }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().arp_out }}
+        do:
+          - itsm_update_results
+          - get_eigrp_interfaces
+      - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+        publish:
+          - arp_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+               Issuing "show ip arp {{ ctx().peer_ip }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().arp_out }}
+               
+               RESULT: Command failed
+        do:
+           - itsm_escalate
+           
+  get_eigrp_interfaces:
+    action: core.remote
+    input:
+      cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c '{{ ctx().neighbor_command }}' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how ip eigrp')-1 }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - neighbor_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - worknote: |
+               Issuing "{{ ctx().neighbor_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().neighbor_out }}
+        do:
+          - itsm_update_results
+          - get_clear_counter_cmd
+      - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+        publish:
+          - neighbor_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+               Issuing "{{ ctx().neighbor_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().neighbor_out }}
+               
+               RESULT: Command failed
+        do:
+         - itsm_escalate
+           
+  get_clear_counter_cmd:
+    action: core.noop
+    next:
+      - when: "{{ ctx().device_os == 'IOS' }}"
+        publish:
+          - clear_counter_command: "clear counters {{ ctx().subinterface }}"
+        do:
+          - execute_clear_counter
+      - when: "{{ ctx().device_os == 'NXOS' }}"
+        publish:
+          - clear_counter_command: "clear counters {{ ctx().subinterface }}"
+        do:
+          - execute_clear_counter
+          
+  execute_clear_counter:
+    action: core.remote
+    input:
+      cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c '{{ ctx().clear_counter_command }}' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('lear counters')-1 }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - clear_counter: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - clear_counter_out: |
+               Issuing "{{ ctx().clear_counter_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().clear_counter }}
+        do:
+          - counter_no_support
+      - when: "{{ failed() }}"
+        publish:
+          - clear_counter_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+               Issuing "{{ ctx().clear_counter_command }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().clear_counter_out }}
+               
+               RESULT: Command failed
+        do:
+          - itsm_escalate
+           
+  counter_no_support:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().clear_counter_out }}\" | grep 'no support for counters' | wc -l"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - no_support_count: "{{ result().stdout | trim | int }}"
+        do:
+          - counter_invalid_input
+      - when: "{{ (succeeded() or failed())  and result().stdout == '' }}"
+        publish:
+          - worknote: |
+                    Clear counter output validation failed.Escalating the incident.
+                    
+                    RESULT: Command failed. 
+                    
+        do:
+          - itsm_escalate
+
+  counter_invalid_input:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().clear_counter_out }}\" | grep 'Invalid input detected' | wc -l"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - invalid_input_count: "{{ result().stdout | trim | int }}"
+        do:
+          - validate_clear_counter
+      - when: "{{ failed() }}"
+        publish:
+          - worknote: |
+                    Clear counter output validation failed.Escalating the incident.
+                    
+                    RESULT: Command failed. 
+        do:
+          - itsm_escalate
+
+
+  validate_clear_counter:
+    action: core.noop
+    next:
+      - when: "{{ ctx().no_support_count == 0 and ctx().invalid_input_count == 0 }}"
+        publish:
+          - counter_status: "success"
+          - worknote: |
+                      {{ ctx().clear_counter_out }}
+                      Counters Supported? true
+        do:
+          - itsm_update_results
+          - get_ping_peer_cmd
+      - when: "{{ ctx().no_support_count > 0 or ctx().invalid_input_count > 0 }}"
+        publish:
+          - counter_status: "success"
+          - worknote: |
+                      {{ ctx().clear_counter_out }}
+                      Counters Supported? false
+        do:
+          - itsm_update_results
+          - get_ping_peer_cmd
+      - when: "{{ ctx().invalid_input_count > 0 }}"
+        publish:
+          - counter_status: "success"
+          - worknote: |
+                    Clear counter output validation failed.Escalating the incident.
+                    
+                    {{ ctx().clear_counter_out }}
+                    
+                    RESULT: Command failed.
+        do:
+          - itsm_escalate
+          
+
+  get_ping_peer_cmd:
+    action: core.noop
+    next:
+      - when: "{{ ctx().device_os == 'IOS' and ctx().subinterface_ip != '' }}"
+        publish:
+          - ping_peer_command: "ping ip {{ ctx().peer_ip }} repeat 1000 size 1500 source {{ ctx().subinterface_ip }}"
+        do:
+          - ping_peer_ip
+      - when: "{{ ctx().device_os == 'IOS' and ctx().subinterface_ip == '' }}"
+        publish:
+          - worknote: |
+                    Automation is escalating the incident.
+                    
+                    Error: No subinterface passed or invalid device OS.
+        do:
+          - itsm_escalate
+      - when: "{{ ctx().device_os == 'NXOS' }}"
+        publish:
+          - ping_peer_command: "ping {{ ctx().peer_ip }} count 10 packet-size 1500 interval 1"
+        do:
+          - ping_peer_ip 
+
+  ping_peer_ip:
+    action: core.remote
+    input:
+      cmd: "{{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c '{{ ctx().ping_peer_command }}' {{ ctx().ci_address }}"
+      hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+      username: "{{ st2kv('system.network.username') }}"
+      password: <% st2kv('system.entuity_pass', decrypt => true) %>
+      timeout: 300
+    next:
+      - when: "{{ succeeded() and ctx().device_os == 'IOS' }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('ping') }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - ping_peer: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - ping_peer_out: |
+               Issuing extended ping on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().ping_peer }}
+        do:
+          - validate_IOS_ping
+      - when: "{{ succeeded() and ctx().device_os == 'NXOS' }}"
+        publish:
+          - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('ping') }}"
+          - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+          - ping_peer: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+          - ping_peer_out: |
+               Issuing extended ping on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().ping_peer }}
+        do:
+          - validate_NXOS_ping
+      - when: "{{ failed() }}"
+        publish:
+          - ping_peer_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+          - worknote: |
+                    Issuing extended ping on device {{ ctx().ci_address }} from NMS Server.
+                    {{ ctx().ping_peer_out }}
+                    
+                    RESULT: Ping Command failed. 
+                    
+                    Escalating the incident.
+        do:
+          - itsm_escalate
+          
+  validate_IOS_ping:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().ping_peer_out }}\" | grep 'Success rate is' | awk '{print $4}'"
+    next:
+      - when: "{{ result().stdout == '' or result().stdout | trim != '100' and ctx().ping_peer_retry < 4 }}"
+        publish:
+          - success_rate: "{{ result().stdout | trim }}"
+          - ping_peer_retry: "{{ ctx().ping_peer_retry + 1 }}"
+        do:
+          - peer_ping_delay
+      - when: "{{ result().stdout == '' or result().stdout | trim != '100' and ctx().ping_peer_retry >= 4 }}"
+        publish:
+          - success_rate: "{{ result().stdout | trim }}"
+          - worknote: |
+                      Automation is escalating the incident.
+                      {{ ctx().ping_peer_out }}
+                      
+                      RESULT: Ping success rate is not 100 or automation not able to check the ping status.
+        do:
+          - itsm_escalate
+      - when: "{{ result().stdout | trim == '100' }}"
+        publish:
+          - success_rate: "{{ result().stdout | trim }}"
+          - worknote: |
+                      {{ ctx().ping_peer_out }}
+                      
+                      Ping is Successful.
+        do:
+          - itsm_update_results
+          - sh_interface_cmd_execution
+          
+  peer_ping_delay:
+    action: core.pause
+    input:
+      max_pause: 120
+    next:
+      - when: "{{ succeeded() or failed() }}"
+        do:
+          - get_ping_peer_cmd
+          
+  validate_NXOS_ping:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().ping_peer_out }}\" | grep 'packet loss'"
+    next:
+      - when: "{{ result().stdout == '' or 100 - (result().stdout.split(',')[2].split('%')[0] | trim | int) != 100  and ctx().ping_peer_retry < 4 }}"
+        publish:
+          - success_rate: "{{ 100 - (result().stdout.split(',')[2].split('%')[0] | trim | int) }}"
+          - ping_peer_retry: "{{ ctx().ping_peer_retry + 1 }}"
+        do:
+          - peer_ping_delay
+      - when: "{{ result().stdout == '' or 100 - (result().stdout.split(',')[2].split('%')[0] | trim | int) != 100  and ctx().ping_peer_retry >= 4 }}"
+        publish:
+          - success_rate: "{{ 100 - (result().stdout.split(',')[2].split('%')[0] | trim | int) }}"
+          - worknote: |
+                      Automation is escalating the incident.
+                      {{ ctx().ping_peer_out }}
+                      
+                      RESULT: Ping success rate is not 100 or automation not able to check the ping status.
+        do:
+          - itsm_escalate
+      - when: "{{ 100 - (result().stdout.split(',')[2].split('%')[0] | trim | int) == 100 }}"
+        publish:
+          - success_rate: "{{ result().stdout | trim }}"
+          - worknote: |
+                      {{ ctx().ping_peer_out }}
+                      
+                      Ping is Successful.
+        do:
+          - itsm_update_results
+          - sh_interface_cmd_execution
+          
+  sh_interface_cmd_execution:
+    action: core.remote
+    input:
+       cmd: "sleep 5 ; {{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c 'show interface {{ ctx().subinterface }}' {{ ctx().ci_address }}"
+       hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+       username: "{{ st2kv('system.network.username') }}"
+       password: <% st2kv('system.entuity_pass', decrypt => true) %>
+       timeout: 300
+    next:
+       - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+         publish:
+           - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how interface')-1 }}"
+           - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+           - interface_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+           - worknote: |
+               Issuing "show interface {{ ctx().subinterface }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().interface_out }}
+         do:
+           - itsm_update_results
+           - get_date
+       - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+         publish:
+           - interface_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+           - worknote: |
+               Issuing "show interface {{ ctx().subinterface }}" on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().interface_out }}
+               
+               RESULT: Command failed
+         do:
+           - itsm_escalate
+           
+  get_date:
+    action: core.local
+    input:
+      cmd: "date '+ %B %d'"
+    next:
+      - when: "{{ succeeded() and result().stdout != '' }}"
+        publish:
+          - log_command: "show log | include {{ ctx().single_quote }}{{ result().stdout | trim }}{{ ctx().single_quote }}"
+        do:
+          - log_cmd_execution
+      - when: "{{ failed() or (succeeded() and result().stdout == '') }}"
+        publish:
+          - log_command: "show log"
+        do:
+          - log_cmd_execution
+          
+  log_cmd_execution:
+    action: core.remote
+    input:
+       cmd: "{{ ctx().script_name }}/clogin -noenable -u {{ ctx().nw_device_username }} -p {{ ctx().nw_device_password }} -b {{ st2kv(ctx().nms_host).split(',')[1] }}  -c \"{{ ctx().log_command }}\" {{ ctx().ci_address }}"
+       hosts: "{{ st2kv(ctx().nms_host).split(',')[0] }}"
+       username: "{{ st2kv('system.network.username') }}"
+       password: <% st2kv('system.entuity_pass', decrypt => true) %>
+       timeout: 300
+    next:
+       - when: "{{ succeeded() and 'Invalid input detected' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Unknown' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout and 'Error:' not in result()[st2kv(ctx().nms_host).split(',')[0]].stdout }}"
+         publish:
+           - index1: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('how log')-1 }}"
+           - index2: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout.index('#exit') }}"
+           - log_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout[ctx().index1:ctx().index2] }}"
+           - worknote: |
+               Issuing how log command on device {{ ctx().ci_address }} from NMS Server:
+               
+               {{ ctx().log_out }}
+         do:
+           - itsm_update_results
+           - validate_interface_counter
+       - when: "{{ failed() or (succeeded() and ('Invalid input detected' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Unknown' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout or 'Error:' in result()[st2kv(ctx().nms_host).split(',')[0]].stdout)) }}"
+         publish:
+           - log_out: "{{ result()[st2kv(ctx().nms_host).split(',')[0]].stdout if result()[st2kv(ctx().nms_host).split(',')[0]].stdout != '' else result()[st2kv(ctx().nms_host).split(',')[0]].stderr }}"
+           - worknote: |
+                    Issuing show log command on device {{ ctx().ci_address }} from NMS Server.
+                    {{ ctx().log_out }}
+                    
+                    RESULT: show log Command failed. 
+                    
+                    Escalating the incident.
+         do:
+           - itsm_escalate
+          
+  validate_interface_counter:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().interface_out }}\" | grep 'is up' | wc -l"
+    next:
+      - when: "{{ succeeded() and result().stdout | trim != '' or result().stdout | int > 0 }}"
+        publish:
+          - interface_status: 'up'            
+        do:
+          - validate_circuit
+      - when: "{{ (succeeded() and (result().stdout | trim == '' or result().stdout | trim | int == 0)) or failed() }}"
+        publish:
+          - interface_status: 'down' 
+          - worknote: |
+                      Automation is escalating the incident.
+                      {{ ctx().interface_out }}
+                      
+                      RESULT: The interface is not UP.
+        do:
+          - itsm_escalate
+    
+  validate_circuit:
+    action: core.local
+    input:
+      cmd: "echo \"{{ ctx().log_out }}\" | grep 'peer restarted\\|new adjacency\\|holding time expired\\|retry limit exceeded\\|route filter changed' | wc -l"
+    next:
+      - when: "{{ succeeded() and result().stdout | trim != '' or result().stdout | int == 0 }}"
+        publish:
+          - circuit_status: 'nobounce'            
+        do:
+          - finish
+      - when: "{{ (succeeded() and (result().stdout | trim == '' or result().stdout | trim | int != 0)) or failed() }}"
+        publish:
+          - circuit_status: 'bounced' 
+        do:
+          - finish
+          
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ ctx().circuit_status == 'nobounce' }}"
+        publish:
+          - worknote: "Circuit Clean: no bounce"
+        do:
+          - itsm_close
+      - when: "{{ ctx().circuit_status == 'bounced' }}"
+        publish:
+          - worknote: "Circuit bounced and recovered"
+        do:
+          - itsm_close
+
+  itsm_escalate_login_failed:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to login to the remote machine. \n {{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }} while escalate"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating the incident. \n {{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. \n {{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+        do:
+           - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "EIGRP Network Peer Route Disappeared"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc:
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_Id: <% ctx(st2).action_execution_id %>
+        Module_Name: "EIGRP Network Peer Route Disappeared"
+        Ref_No: "{{ ctx().inc_number }}"
+        # Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc | replace(':', ': ') }}"
+        Detail_Desc: "{{ ctx().detailed_desc | replace(':', ': ') }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail

@@ -1,0 +1,7 @@
+---
+itsm_tool: "servicenow"
+
+helix:
+  url: "helix.com"
+  username: "huser"
+  password: "hpass"

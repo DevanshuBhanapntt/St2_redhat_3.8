@@ -1,0 +1,104 @@
+---
+name: linux_disk_usage_check
+pack: ntt_monitoring
+description: "Checks the disk usage on a server and compares to given threshold"
+runner_type: orquesta
+entry_point: workflows/linux_disk_usage_check.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Linux server to check memory"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true 
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true 
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: "2"
+  disk_name:
+    type: string
+    description: "Reported disk name"
+    required: true     
+  disk_threshold:
+    type: integer
+    description: "check the disk usage compare threshold"
+    required: false
+    default: 85
+  os_type:
+    type: string
+    description: "Operating System type of the server (windows, linux)"
+    required: true
+    default: "linux"   
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false  
+  configuration_item_name:
+    type: string
+    description: "configuration item name from ITSM to pass into the recurrence logic"
+    required: false    
+  ssh_password_key:
+    type: string
+    description: "ST2 key that stores ssh password for bolt runs"
+    required: false
+  ssh_username_key:
+    type: string
+    description: "ST2 key that stores ssh username for bolt runs"
+    required: false
+  ssh_tmp_dir_key:
+    type: string
+    description: "ST2 key that stores ssh tmp dir for bolt runs"
+    required: false  
+  winrm_password_key:
+    type: string
+    description: "ST2 key that stores winrm password for bolt runs"
+    required: false
+  winrm_port_key:
+    type: integer
+    description: "ST2 key that stores winrm port for bolt runs"
+    required: false
+  winrm_username_key:
+    type: string
+    description: "ST2 key that stores winrm username for bolt runs"
+    required: false
+  winrm_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm ssl for bolt runs"
+    required: false
+  winrm_verify_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm verify_ssl for bolt runs"
+    required: false

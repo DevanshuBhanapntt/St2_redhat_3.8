@@ -1,0 +1,122 @@
+---
+# We moved this to a Python action for performance improvements
+version: 1.0
+description: "Verifies whether the given value is above or below the given threshold then calculate if the previous task should be re-run and return true or false"
+#platform: All
+
+input:
+  - check_value
+  - fail_check_counter
+  - max_failures
+  - rerun_flag
+  - rerun_limit
+  - rerun_total
+  - sleep_interval
+  - threshold
+  - threshold_type
+  - value
+
+vars:
+  - rerun_action: null
+  - threshold_passed: null
+
+output:
+  - rerun_action: "{{ ctx().rerun_action }}"
+  - fail_check_counter: "{{ ctx().fail_check_counter }}"
+  - threshold_passed: "{{ ctx().threshold_passed }}"
+
+tasks:
+  value_check_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().check_value }}"
+        do:
+          - type_dispatch
+      - when: "{{ succeeded() and not ctx().check_value }}"
+        do:
+          - sleep_dispatch
+
+  # A lower threshold type expects the given value to be higher than the threshold and an upper threshold type expects the value to be lower
+  type_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().threshold_type == 'lower' }}"
+        do:
+          - verify_above
+      - when: "{{ succeeded() and ctx().threshold_type == 'upper' }}"
+        do:
+          - verify_below
+
+  verify_above:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().value <= ctx().threshold }}"
+        publish:
+          - fail_check_counter: "{{ ctx().fail_check_counter + 1 }}"
+          - threshold_passed: false
+        do:
+          - sleep_dispatch
+      - when: "{{ succeeded() and ctx().value > ctx().threshold }}"
+        publish:
+          - fail_check_counter: 0
+          - threshold_passed: true
+        do:
+          - sleep_dispatch
+
+  verify_below:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().value < ctx().threshold }}"
+        publish:
+          - fail_check_counter: 0
+          - threshold_passed: true
+        do:
+          - sleep_dispatch
+      - when: "{{ succeeded() and ctx().value >= ctx().threshold }}"
+        publish:
+          - fail_check_counter: "{{ ctx().fail_check_counter + 1 }}"
+          - threshold_passed: false
+        do:
+          - sleep_dispatch
+
+  # This task decides whether or not to re-run the previous action. If X number (determined by customer) of checks have been found
+  # to be acceptible, monitoring will stop, and if Y number (also determined by customer) of checks have been found to be unacceptible
+  # monitoring will also stop.
+  sleep_dispatch:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().fail_check_counter == ctx().max_failures }}"
+        publish:
+          - rerun_action: false
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().rerun_total >= ctx().rerun_limit }}"
+        publish:
+          - rerun_action: false
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().rerun_total < ctx().rerun_limit and ctx().fail_check_counter < ctx().max_failures and ctx().rerun_flag }}"
+        publish:
+          - rerun_action: true
+        do:
+          - action_recheck
+      - when: "{{ succeeded() and ctx().rerun_total < ctx().rerun_limit and ctx().fail_check_counter < ctx().max_failures and not ctx().rerun_flag }}"
+        publish:
+          - rerun_action: false
+        do:
+          - noop
+
+  # This is where the sleep between rechecks is achieved if a sleep_interval is given
+  action_recheck:
+    action: core.local
+    input:
+      cmd: "sleep {{ ctx().sleep_interval }}s"
+      # timeout = sleep_interval + 30 for long sleep intervals that can hit the built in timeout limit so that we can increase it and give the workflow time to return the results.
+      timeout: "{{ ctx().sleep_interval + 30 }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail

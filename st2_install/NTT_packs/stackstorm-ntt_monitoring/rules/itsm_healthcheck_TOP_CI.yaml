@@ -1,0 +1,22 @@
+---
+  name: "itsm_healthcheck_TOP_CI"
+  pack: "ntt_monitoring"
+  description: "trigger healthcheck TOP CI workflow at the specified time"
+  enabled: false
+
+  trigger:
+    type: "core.st2.CronTimer"
+    parameters:
+      timezone: "UTC"
+      day_of_week: "*"
+      hour: 10
+      minute: 0
+      second: 0
+
+  action:
+    ref: "ntt_monitoring.healthcheck_TOP_CI"
+    parameters:
+      ThirtydayThreshold: '1'
+      WeeklyThreshold: '1'
+      DailyThreshold: '1'
+      NumberOfCIs: '5'

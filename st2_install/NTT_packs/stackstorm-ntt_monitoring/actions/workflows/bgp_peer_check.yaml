@@ -1,0 +1,597 @@
+---
+version: 1.0
+description: Check if the bgp peer established or not.
+#platform: Network
+
+input:
+  - assignment_group  
+  - customer_abbr
+  - customer_name
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - detailed_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - device_name
+  - device_ip
+  - peer_ip
+  - script_in_entuity
+  - ssh_password_key
+  - ssh_username_key
+  - ssh_tmp_dir_key
+  - interface_ip
+  - nw_clogin_script_server_IP
+# nw_clogin_script_server_IP is entuity ip
+
+ 
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""  
+  - run_error: false
+  - am_status: ""
+  - start_timestamp: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - worknote: ""
+  - bgp_failed: "false"
+  - bgp_success: "true"
+  - clogin_failed: "false"
+  - into_exclude: false
+
+output:  
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+  - bgp_failed: "{{ ctx().bgp_failed }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"  
+      workflow_overrides:
+        bolt_ssh_password_key: "{{ ctx().ssh_password_key }}"
+        bolt_ssh_username_key: "{{ ctx().ssh_username_key }}"
+        bolt_ssh_tmp_dir_key: "{{ ctx().ssh_tmp_dir_key }}"      
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          # entuity server username (or) stackstorm server username
+          - nw_clogin_script_server_username: "{{ result().result.nw_clogin_script_server_username }}"
+          # entuity server password (or) stackstorm server password
+          - nw_clogin_script_server_password: "{{ result().result.nw_clogin_script_server_password }}"
+          # clogin script path in entuity or stackstorm server
+          - nw_clogin_script_path: "{{ result().result.nw_clogin_script_path }}"
+          - nw_device_username: "{{ result().result.device_username }}"  
+          - nw_device_password: "{{ result().result.device_password }}"  
+          - nw_unreachable_to_ping_ping_count: "{{ result().result.nw_unreachable_to_ping_ping_count }}"
+          - nw_unreachable_to_ping_ping_recheck_limit: "{{ result().result.nw_unreachable_to_ping_ping_recheck_limit }}"
+          - nw_unreachable_to_ping_ping_sleep_interval: "{{ result().result.nw_unreachable_to_ping_ping_sleep_interval }}"
+          - nw_unreachable_to_ping_ping_success_packets_received: "{{ result().result.nw_unreachable_to_ping_ping_success_packets_received }}"
+          - nw_unreachable_to_ping_ping_packets_loss_threshold_per: "{{ result().result.nw_unreachable_to_ping_ping_packets_loss_threshold_per }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"       
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"          
+        do:
+          - incident_move_inprogress
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+      
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"    
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_exclusion         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  check_exclusion:
+    action: core.noop
+    next:
+      - when: "{{ succeeded()  and (ctx().device_name.lower() in ['testanyexclusion']) }}"
+        publish:
+          - into_exclude: true
+          - worknote: "Automation is not allowed run on this device:{{ ctx().device_name }},  as this is the critical device."
+        do:
+          - itsm_update_results
+          - itsm_escalate
+      - when: "{{ succeeded() and not ctx().into_exclude }}"
+        do:
+          - check_recurrence
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Bgp_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().device_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:      
+          - bgp_check_ping 
+          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup   
+          
+     
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true    
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:          
+          - check_ping_solution 
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true        
+        do:
+          - itsm_cleanup 
+
+  check_ping_solution:
+    action: core.noop
+    next:
+      - when: "{{ ctx().script_in_entuity }}"
+        do:
+          - bgp_check_entuity_ping
+      - when: "{{ not ctx().script_in_entuity }}"
+        do:
+          - bgp_check_ping
+
+  bgp_check_entuity_ping:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().nw_clogin_script_server_IP }}"
+      password: "{{ ctx().nw_clogin_script_server_password }}"
+      username: "{{ ctx().nw_clogin_script_server_username }}"
+      cmd: "/bin/ping -c 10 -b {{ ctx().interface_ip }} {{ ctx().device_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - uptime_value: "{{ result()[ctx().nw_clogin_script_server_IP].stdout }}"
+          - ping_output: "{{ result()[ctx().nw_clogin_script_server_IP].stdout }}"
+          - worknote: |
+              The device {{ ctx().device_name }} is reachable. Proceeding with BGP Analysis.
+              
+              {{ ctx().ping_output }}
+        do:
+          - itsm_update_results
+          - check_bgp_solution
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result()[ctx().nw_clogin_script_server_IP].stdout if result()[ctx().nw_clogin_script_server_IP].stdout != '' else result()[ctx().nw_clogin_script_server_IP].stderr }}"
+          - worknote: |
+               Automation found the device {{ ctx().device_name }} is not reachable.Escalating the ticket.
+              
+               {{ ctx().error_message }}
+          - run_error: true
+          - run_error_uptime: true
+        do:
+          - itsm_escalate
+
+  bgp_check_ping:
+    action: core.local
+    input: 
+      cmd: "ping -c {{ ctx().nw_unreachable_to_ping_ping_count }} {{ ctx().device_ip }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ping_result: "{{ result().succeeded }}" 
+          - ping_output: "{{ result().stdout }}" 
+          - worknote: |
+              The device {{ ctx().device_name }} is reachable. Proceeding with BGP Analysis.
+              
+              {{ ctx().ping_output }}
+        do:
+          - itsm_update_results  
+          - check_bgp_solution
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error: true
+          - worknote: |
+               Automation found the device {{ ctx().device_name }} is not reachable.Escalating the ticket.
+              
+               {{ ctx().error_message }}
+        do:
+          - itsm_escalate
+          
+  check_bgp_solution:
+    action: core.noop
+    next:
+      - when: "{{ ctx().script_in_entuity }}"
+        do:
+          - bgp_check_entuity
+      - when: "{{ not ctx().script_in_entuity }}"
+        do:
+          - bgp_check
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded()}}"         
+        do:
+          - noop          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup   
+  
+  bgp_check_entuity:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().nw_clogin_script_server_IP }}"
+      password: "{{ ctx().nw_clogin_script_server_password }}"
+      username: "{{ ctx().nw_clogin_script_server_username }}"
+      # The following command will return the uptime in "x days, y hours, z minutes" format
+      cmd: "sh {{ ctx().nw_clogin_script_path }}/BGP_protocol_check.sh \"{{ ctx().device_ip }}\" \"{{ ctx().peer_ip }}\" \"{{ ctx().inc_number }}\"  \"{{ ctx.nw_clogin_script_server_IP }}\"  \"{{ ctx().interface_ip }}\" \"{{ ctx().nw_device_username}}\" \"{{ ctx().nw_device_username }}\" "
+      timeout: 800
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - bgp_info: "{{ result()[ctx().nw_clogin_script_server_IP].stdout }}"
+          - worknote: |
+              BGP peer analysis:
+              {{ ctx().bgp_info }}
+          - bgp_failed: |
+              {% if "Switchover" in ctx().bgp_info %}
+              true
+              {% elif "LocalSoft" in ctx().bgp_info %}
+              true
+              {% elif "Exception" in ctx().bgp_info %}
+              true
+              {% elif "Illegal" in ctx().bgp_info %}
+              true
+              {% elif "Trap" in ctx().bgp_info %}
+              true
+              {% elif "Interrupt" in ctx().bgp_info %}
+              true
+              {% elif "Unable to locate" in ctx().bgp_info %}
+              true
+              {% elif "ip_bgp_summary_not_ok" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_INPUT_AND_CRC_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_OUTPUT_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_INTERFACE_RESET_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_OUTPUT_BUFFER_AND_SWAPPED_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_CAREER_TRANSITION_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "MIB-2_interface_not_found" in ctx().bgp_info %}
+              true
+              {% else %}
+              false
+              {% endif %}
+        do:
+          - itsm_update_results
+          - bgp_output_validation
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not connect to {{ ctx().nw_clogin_script_server_IP }}."
+          - run_error: true
+          - bgp_error: "{{ result()[ctx().nw_clogin_script_server_IP].stderr }}"
+          - bgp_info: "{{ result()[ctx().nw_clogin_script_server_IP].stdout }}"
+          - worknote: |
+              Automation failed to perform bgp peer analysis due to below error. Escalating the incident.
+              Error:              
+              {{ ctx().bgp_error }}
+              
+              Command Output:
+              {{ ctx().bgp_info }}
+        do:
+          - itsm_escalate
+  
+  bgp_check:
+    action: ntt_monitoring.bgp_peer_script
+    input:
+        device_username: "{{ ctx().nw_device_username }}"
+        device_password: "{{ ctx().nw_device_password }}"
+        clogin_path: "{{ ctx().nw_clogin_script_path }}"
+        peerip: "{{ ctx().peer_ip }}"
+        logfile: "{{ ctx().inc_number }}"
+        device: "{{ ctx().device_ip }}"
+    next:
+      - when: "{{ succeeded() }}" 
+        publish:
+          - bgp_info: "{{ result().stdout }}"
+          - worknote: |
+              BGP peer analysis:
+              {{ ctx().bgp_info }}
+          - bgp_failed: |
+              {% if "Switchover" in ctx().bgp_info %}
+              true
+              {% elif "LocalSoft" in ctx().bgp_info %}
+              true
+              {% elif "Exception" in ctx().bgp_info %}
+              true
+              {% elif "Illegal" in ctx().bgp_info %}
+              true
+              {% elif "Trap" in ctx().bgp_info %}
+              true
+              {% elif "Interrupt" in ctx().bgp_info %}
+              true
+              {% elif "Unable to locate" in ctx().bgp_info %}
+              true
+              {% elif "ip_bgp_summary_not_ok" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_INPUT_AND_CRC_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_OUTPUT_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_INTERFACE_RESET_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_OUTPUT_BUFFER_AND_SWAPPED_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "PLEASE_CHECK_CAREER_TRANSITION_COUNTER" in ctx().bgp_info %}
+              true
+              {% elif "MIB-2_interface_not_found" in ctx().bgp_info %}
+              true
+              {% else %}
+              false
+              {% endif %}
+        do:
+          - itsm_update_results
+          - bgp_output_validation
+      - when: "{{ failed() }}"
+        publish:
+          - bgp_error: "{{ result().error }}"
+          - bgp_info: "{{ result().stdout }}"
+          - worknote: |
+              Automation failed to perform bgp peer analysis due to below error. Escalating the incident.
+              Error:              
+              {{ ctx().bgp_error }}
+              
+              Command Output:
+              {{ ctx().bgp_info }}
+          - run_error: true
+        do:
+          - itsm_escalate
+  
+  bgp_output_validation:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and 'true' in ctx().bgp_failed }}"
+        do:
+          - finish_escalate
+      - when: "{{ succeeded() and 'true' not in ctx().bgp_failed }}"
+        do:
+          - finish_close
+  
+  
+  finish_escalate:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and not ctx().found_recurrence }}"
+        publish:
+          - worknote: |
+              Automation is escalating the incident.
+              BGP Peer analysis of {{ ctx().device_name }} failed, see Work Log.
+        do:
+          - itsm_update_results
+          - itsm_escalate 
+      - when: "{{ succeeded() and ctx().found_recurrence }}"
+        publish:
+          - worknote: |
+              Automation is escalating the incident due to recurring incidents and BGP Peer analysis failed.
+              BGP Peer analysis of {{ ctx().device_name }} failed, see Work Log.
+        do:
+          - itsm_update_results
+          - itsm_escalate_recurrence
+  
+  finish_close:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and not ctx().found_recurrence }}"
+        publish:
+          - worknote: |
+              Automation is resolving the incident.
+              {{ ctx().device_name }} ping and login and BGP Peer analysis success, see Work Log.
+        do:
+          - itsm_update_results
+          - itsm_close
+      - when: "{{ succeeded() and ctx().found_recurrence }}"
+        publish:
+          - worknote: |
+              Automation is escalating the incident due to recurring incidents.
+              {{ ctx().device_name }} ping and login and BGP Peer analysis success, see Work Log.
+        do:
+          - itsm_update_results
+          - itsm_escalate_recurrence
+  
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup        
+          
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp       
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+                    
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:        
+          - get_end_timestamp         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+          
+          
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ ctx().am_status == 'Success' }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_close').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().am_status == 'Failure' and ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_escalate_recurrence').end_timestamp }}"
+        do:
+          - insert_db  
+      - when: "{{ ctx().am_status == 'Failure' and not ctx().found_recurrence }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db  
+      - when: "{{ ctx().run_error and ctx().am_status == '' }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db          
+  
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "BGP Peer Analysis"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if ctx().error_message != '' %}
+          {{ ctx().error_message }}                  
+          {% endif %}
+          {% if ctx().worknote != '' %}
+          {{ ctx().worknote }}                  
+          {% endif %}
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().device_name }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "bgp_peer_check"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Network"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().device_name }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail 
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail

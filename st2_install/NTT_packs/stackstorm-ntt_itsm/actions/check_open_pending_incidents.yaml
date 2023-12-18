@@ -1,0 +1,13 @@
+---
+
+description: "Check open and pending incidents in serviecnow based upon short description"
+enabled: true
+runner_type: "python-script"
+entry_point: check_open_pending_incidents.py
+name: check_open_pending_incidents
+pack: ntt_itsm
+parameters:
+  short_desc:
+    type: string
+    description: "short description for the incident"
+    required: true

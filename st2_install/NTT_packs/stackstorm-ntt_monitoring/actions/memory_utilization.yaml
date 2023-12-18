@@ -1,0 +1,135 @@
+---
+name: memory_utilization
+pack: ntt_monitoring
+description: "Checks the memory usage on a server and compares to given threshold"
+runner_type: orquesta
+entry_point: workflows/memory_utilization.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "FQDN of the Linux server to check memory"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: "2"
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false 
+  configuration_item_name:
+    type: string
+    description: "configuration item name name from ITSM ticket"
+    required: false
+  max_failures:
+    type: integer
+    description: "Total number of times the memory utilization may be found to be above the threshold"
+    required: false
+  threshold_percent:
+    type: integer
+    description: "Maximum acceptable memory usage on the server"
+    required: false
+  os_type:
+    type: string
+    description: "Operating System type of the server (windows, linux)"
+    required: true
+    default: "linux"
+  os_name:
+    type: string
+    description: "os name from sensor, if known."
+    required: true
+    default: ""
+  recheck_limit:
+    type: integer
+    description: "Number of times to check the memory utilization"
+    required: false
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each memory check"
+    required: false
+  ssh_password_key:
+    type: string
+    description: "ST2 key that stores ssh password for bolt runs"
+    required: false
+  ssh_username_key:
+    type: string
+    description: "ST2 key that stores ssh username for bolt runs"
+    required: false
+  ssh_tmp_dir_key:
+    type: string
+    description: "ST2 key that stores ssh tmp dir for bolt runs"
+    required: false
+  status:
+    type: string
+    description: "Status of the ticket"
+    required: false
+  winrm_password_key:
+    type: string
+    description: "ST2 key that stores winrm password for bolt runs"
+    required: false
+  winrm_port_key:
+    type: integer
+    description: "ST2 key that stores winrm port for bolt runs"
+    required: false
+  winrm_username_key:
+    type: string
+    description: "ST2 key that stores winrm username for bolt runs"
+    required: false
+  winrm_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm ssl for bolt runs"
+    required: false
+  winrm_verify_ssl_key:
+    type: string
+    description: "ST2 key that stores winrm verify_ssl for bolt runs"
+    required: false
+  local_server_ip:
+    type: string
+    description: "stackstorm server ip"
+    required: true
+    default: "{{ st2kv.system.local_server_ip }}"
+  local_server_user_key:
+    type: string
+    description: "stackstorm server username"
+    required: true
+    default: "system.local_server_user"
+  local_server_pass_key:
+    type: string
+    description: "stackstorm server password"
+    required: true
+    default: "system.local_server_pass"

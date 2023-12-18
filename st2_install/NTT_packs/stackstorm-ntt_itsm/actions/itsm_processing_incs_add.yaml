@@ -1,0 +1,16 @@
+---
+name: itsm_processing_incs_add
+pack: ntt_itsm
+description: "Checks the ITSM type from the config file and adds the given incident to the appropriate kv store variable"
+runner_type: orquesta
+entry_point: workflows/itsm_processing_incs_add.yaml
+enabled: true
+parameters:
+  inc_id:
+    type: string
+    description: "ITSM incident ID to add to the kv store"
+    required: true
+  inc_st2_key:
+    type: string
+    description: "Name of the kv store key to save the ITSM incident ID to"
+    required: false

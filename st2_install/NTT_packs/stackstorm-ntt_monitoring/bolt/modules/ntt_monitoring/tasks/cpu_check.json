@@ -1,0 +1,28 @@
+{
+  "description": "Verify that the CPU utilization for the given VM is below the given threshold",
+  "implementations": [
+    {"name": "cpu_check.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "cpu_name": {
+      "description": "Name of the CPU to check on the server",
+      "type": "String[1]"
+    },
+    "cpu_type": {
+      "description": "Type of the CPU to check on the server",
+      "type": "String[1]"
+    },
+    "dns_domain": {
+      "description": "DNS domain to append to the hostname",
+      "type": "String"
+    },
+    "threshold_percent": {
+      "description": "Maximum acceptable CPU usage on the server",
+      "type": "String"
+    },
+    "top_process_limit": {
+      "description": "CPU utilization limit for top processes",
+      "type": "Integer"
+    }
+  }
+}

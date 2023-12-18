@@ -1,0 +1,629 @@
+---
+version: 1.0
+description: "Gather cpu queue length information for the given VM "
+#platform: Windows
+
+input:
+  - assignment_group
+  - ci_address   
+  - customer_abbr
+  - customer_name
+  - detailed_desc  
+  - dns_domain
+  - inc_number
+  - inc_sys_id
+  - incident_state
+  - max_failures
+  - os_type
+  - cpu_type
+  - recheck_limit
+  - short_desc
+  - sleep_interval
+  - pending_mins
+  - threshold_queue 
+  - rec_short_desc
+  - rec_detailed_desc 
+  - configuration_item_name  
+  - winrm_password_key
+  - winrm_port_key
+  - winrm_username_key
+  - winrm_ssl_key
+  - winrm_verify_ssl_key
+
+vars:
+  # Number of times the cpu queue length is consecutively above the threshold
+  - consecutive_fails: 0 
+  - cpu_info: ""  
+  - cpu_passed: true
+  - cpu_queue_usage: null
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""
+  - recheck_total: 0
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""
+  - uptime_value: null
+  - sleep_interval: 60
+  - threshold_passed: true
+  - am_status: "Success"
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - threshold_percent: 20
+
+output:
+  - cpu_info: "{{ ctx().cpu_info }}"
+  - cpu_queue_usage: "{{ ctx().cpu_queue_usage }}"
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:        
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"
+        threshold_Win_cpu_queue_length: "{{ ctx().threshold_queue }}"
+        max_failures: "{{ ctx().max_failures }}"
+        pending_mins: "{{ ctx().pending_mins }}"
+        recheck_limit: "{{ ctx().recheck_limit }}"         
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+          - threshold_percent: "{{ result().result.threshold_Win_cpu_queue_length if 'threshold_Win_cpu_queue_length' in result().result else '' }}"          
+          - max_failures: "{{ result().result.Win_cpu_queue_max_failures | int if 'max_failures' in result().result else '' }}"          
+          - pending_mins: "{{ result().result.Win_cpu_queue_pending_mins | int }}"
+          - recheck_limit: "{{ result().result.Win_cpu_queue_recheck_limit | int if 'recheck_limit' in result().result else '' }}"           
+        do:
+          - check_incident_state
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - itsm_cleanup 
+          
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        do:
+          - ping_test        
+      - when: "{{ succeeded() and (ctx().incident_state == '-5') }}"
+        do:
+          - incident_move_inprogress          
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2', '-5']) }}"
+        do:
+          - fail
+          
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"      
+    next:
+      - when: "{{ succeeded() and ( ctx().incident_state == '-5') }}"
+        do:
+          - get_recheck_total         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup 
+          
+  get_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - recheck_total: "{{ result().result }}" 
+        do:
+          - get_consecutive_fails
+          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  get_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - consecutive_fails: "{{ result().result }}" 
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      os_type: "{{ ctx().os_type }}"
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - uptime_value: "{{ result().output.uptime_value }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - check_recurrence         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - get_end_timestamp
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "Win_cpu_queue_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_check 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - cpu_queue_check 
+          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup   
+          
+  rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}" 
+        do:
+          - rec_itsm_update_results
+      - when: "{{ succeeded() and (ctx().incident_state == '-5') }}" 
+        do:
+          - cpu_queue_check
+     
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true    
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - cpu_queue_check
+      - when: "{{ failed() }}"
+        do:
+          - noop 
+          
+  cpu_queue_check:   
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::win_cpu_queue_length"
+      params:
+        dns_domain: "{{ ctx().dns_domain }}"
+        cpu_type: "{{ ctx().cpu_type }}"  
+        cpu_name: "_total"        
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - cpu_info: "{{ result().output.run.result.output }}"
+          - cpu_queue_usage: "{{ result().output.run.result.cur_cpu_avg_queue_length | int }}"
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - itsm_update_results
+          - threshold_check
+      - when: "{{ failed() and ctx().recheck_total < ( ctx().max_failures - 1 ) }}"
+        publish:
+          - consecutive_fails: 0
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - threshold_check
+      - when: "{{ failed() and ctx().recheck_total == ( ctx().max_failures - 1 ) }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  threshold_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: true
+      max_failures: "{{ ctx().max_failures }}"
+      rerun_limit: "{{ ctx().recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      fail_check_counter: "{{ ctx().consecutive_fails }}"
+      sleep_interval: "30"
+      threshold: "{{ ctx().threshold_percent }}"
+      value: "{{ ctx().cpu_queue_usage }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - consecutive_fails: "{{ result().result.fail_check_counter }}"
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - add_recheck_total            
+      - when: "{{ succeeded() and not result().result.threshold_passed  }}"
+        publish:           
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - add_consecutive_fails          
+      - when: "{{ succeeded() and result().result.rerun_action }}" 
+        publish:           
+          - threshold_passed: "{{ result().result.threshold_passed }}"      
+        do:
+          - itsm_pending
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - consecutive_fails: 0
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - finish
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  add_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded() and not ctx().threshold_passed }}"  
+        do:
+          - noop  
+      - when: "{{ succeeded() and ctx().threshold_passed }}"  
+        do:
+          - remove_consecutive_fails           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  add_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded()}}"       
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  itsm_pending:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      pending: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      pending_mins: "{{ ctx().pending_mins }}"     
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Pending"
+        do:
+          - remove_pending_ic_kv_var
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().found_recurrence_inc_cnt | int <= 0  and ctx().cpu_queue_usage < ctx().threshold_percent | int }}"
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and ctx().cpu_queue_usage >= ctx().threshold_percent | int }}"
+        publish:
+          - error_message: "The CPU Queue length for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().cpu_queue_usage }}%"
+          - cpu_passed: false
+        do:
+          - itsm_escalate 
+      - when: "{{ succeeded() and ctx().found_recurrence_inc_cnt | int > 0 and ctx().cpu_queue_usage < ctx().threshold_percent | int }}"
+        do:
+          - itsm_escalate_recurrence          
+      
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. The CPU Queue length for {{ ctx().ci_address }} is below the threshold ({{  ctx().threshold_percent }}%) and current CPU Queue length is {{ ctx().cpu_queue_usage }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+          - remove_recheck_total
+          - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup   
+  
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details.The CPU Queue length for {{ ctx().ci_address }} is below the threshold ({{  ctx().threshold_percent }}%) and current CPU Queue length is {{ ctx().cpu_queue_usage }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp
+          - remove_recheck_total
+          - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it. The CPU Queue length for {{ ctx().ci_address }} is above the threshold ({{  ctx().threshold_percent }}%) and current CPU Queue length is {{ ctx().cpu_queue_usage }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+          - remove_recheck_total
+          - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+                    
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: " The current current CPU Queue length is {{ ctx().cpu_queue_usage }} .Refer the below results.  {{ ctx().cpu_info }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - noop       
+          
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+        # - update_kv_var
+          - get_end_timestamp
+        # - remove_recheck_total
+        # - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+          
+  remove_pending_ic_kv_var:
+    action: ntt_itsm.itsm_processing_pending_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ( ctx().run_error or not ctx().cpu_passed ) }}"
+        do:
+          - fail 
+          
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('cpu_queue_check').end_timestamp }}"
+        do:
+          - insert_db 
+          
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "windows_cpu_queue_length"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if ctx().threshold_passed %}
+          CPU Queue length is at {{ ctx().cpu_queue_usage }}% and is under the threshold {{ ctx().threshold_percent }}%.
+          {{ ctx().found_recurrence_value }}                  
+          {% endif %}
+          {% if not ctx().threshold_passed %}
+          {{ ctx().error_message }}
+          {{ ctx().cpu_info }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}         
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "windows_cpu_queue_length"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Windows"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+  
+  remove_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"      
+    next:
+      - when: "{{ succeeded()}}"      
+        do:
+          - remove_consecutive_fails          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  remove_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"      
+    next:
+      - when: "{{ succeeded()}}"       
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup  
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ( ctx().run_error or not ctx().cpu_passed ) }}"
+        do:
+          - fail

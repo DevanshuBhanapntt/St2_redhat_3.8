@@ -1,0 +1,20 @@
+{
+  "description": "Remove all files with the given extension(s) on the given disk and folder path",
+  "implementations": [
+    {"name": "disk_clean_file_exts.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to check on the server",
+      "type": "String[1]"
+    },
+    "file_exts": {
+      "description": "List of file extensions to delete from the disk",
+      "type": "Array[Hash]"
+    }
+  }
+}

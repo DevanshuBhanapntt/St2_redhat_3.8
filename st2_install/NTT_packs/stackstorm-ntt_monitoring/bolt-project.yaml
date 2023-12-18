@@ -1,0 +1,6 @@
+---
+name: ntt
+modules:
+  - stackstorm-st2
+modulepath:
+  - "./bolt/modules"

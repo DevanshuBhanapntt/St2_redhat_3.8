@@ -1,0 +1,15 @@
+---
+name: itsm_processing_pending_incs_remove
+pack: ntt_itsm
+description: "Checks the ITSM type from the config file and removes the given incident from the appropriate kv store variable"
+# runner_type: orquesta
+# entry_point: workflows/itsm_processing_incs_remove.yaml
+# We moved this to a Python action for performance improvements
+runner_type: "python-script"
+entry_point: itsm_processing_pending_incs_remove.py
+enabled: true
+parameters:
+  inc_id:
+    type: string
+    description: "ITSM incident ID to remove from the kv store"
+    required: true

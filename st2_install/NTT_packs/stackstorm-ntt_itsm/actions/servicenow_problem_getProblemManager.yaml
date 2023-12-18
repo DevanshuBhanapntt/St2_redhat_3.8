@@ -1,0 +1,13 @@
+---
+
+name: servicenow_problem_getProblemManager
+pack: ntt_itsm
+description: "Reading the Problem Manager information from ITSM"
+runner_type: "python-script"
+entry_point: servicenow_problem_getProblemManager.py
+enabled: true
+parameters:
+  query:
+    type: string
+    description: "Query to get Problem Manager information"
+    required: true

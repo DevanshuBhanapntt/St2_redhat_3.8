@@ -1,0 +1,21 @@
+---
+customers:
+  cus:
+    connections:
+      ssh_username: "root"
+      ssh_password: "passwd"
+      winrm_username: "administrator"
+      winrm_password: "password"
+    test_var1: "test1"
+  default:
+    connections:
+      ssh_username: "root"
+      ssh_password: "passwd"
+      winrm_username: "admin"
+      winrm_password: "pass"
+      winrm_port: "5986"
+      winrm_scheme: "https"
+      winrm_verify_ssl: "false"
+    test_var1: "overwrite"
+    test_var2: "test2"
+    test_var3: "test3"

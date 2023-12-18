@@ -1,0 +1,16 @@
+---
+  name: "servicenow_incident_catchall"
+  pack: "ntt_itsm"
+  description: "If an incident is created for windows service then check the status of the service and update the incident with results"
+  enabled: true
+
+  trigger:
+    type: "ntt_itsm.servicenow_incident_catchall"
+    parameters: {}
+
+  action:
+    ref: "ntt_itsm.itsm_incident_update"
+    parameters:
+      escalate: "{{ trigger.escalate }}"      
+      inc_id: "{{ trigger.inc_id }}"       
+      notes: "{{ trigger.notes }}" 

@@ -1,0 +1,51 @@
+---
+description: "Checks port utilization on a network device and compares against a given threshold"
+enabled: true
+runner_type: "python-script"
+entry_point: ssh_get_port_utilization.py
+name: ssh_get_port_utilization
+pack: ntt_monitoring
+parameters:
+  device_vendor:
+    type: string
+    description: "The vendor of a networking device"
+    required: true
+  ci_address:
+    type: string
+    description: "IP address of the network device"
+    required: true
+  interface:
+    type: string
+    description: "Interface on the network device to be tested"
+    required: true
+  ssh_username:
+    type: string
+    description: "SSH username to be used on network device"
+    required: true
+  ssh_password:
+    type: string
+    description: "SSH password to be used on network device"
+    required: true
+    secret: true
+  is_entuity:
+    type: string
+    description: "pass true if workflow uses entuity approach"
+    required: true
+    default: 'false'
+  entuity_ip:
+    type: string
+    description: "entuity ip"
+    required: false
+  interface_ip:
+    type: string
+    description: "Interface ip"
+    required: false
+  entuity_user:
+    type: string
+    description: "entuity username"
+    required: false
+  entuity_pass:
+    type: string
+    description: "entuity password"
+    required: false
+    secret: true

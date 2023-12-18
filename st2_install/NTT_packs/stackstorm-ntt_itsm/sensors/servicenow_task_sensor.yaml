@@ -1,0 +1,6 @@
+---
+  class_name: "servicenowtasksensor"
+  entry_point: "servicenow_task_sensor.py"
+  description: "Sensor to find and keep a list of all the open tasks in ServiceNow."
+  poll_interval: 60
+  enabled: false

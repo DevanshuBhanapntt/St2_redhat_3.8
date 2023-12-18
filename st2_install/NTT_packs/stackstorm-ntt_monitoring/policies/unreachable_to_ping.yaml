@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: unreachable_to_ping.concurrency
+description: Limits the concurrent executions for ntt_monitoring.unreachable_to_ping
+enabled: true
+resource_ref: ntt_monitoring.unreachable_to_ping
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

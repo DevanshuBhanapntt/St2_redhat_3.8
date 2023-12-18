@@ -1,0 +1,98 @@
+---
+name: eigrp_network_peer_route_disappeared
+pack: ntt_monitoring
+description: action file for network peer route disappeared
+runner_type: orquesta
+entry_point: workflows/eigrp_network_peer_route_disappeared.yaml
+parameters:
+  assignment_group:
+    type: string
+    description: 'Assignment group from ITSM to pass into the database entry'
+    required: true
+  ci_address:
+    type: string
+    description: 'FQDN of the Windows server to check the CPUs for'
+    required: true
+  customer_name:
+    type: string
+    description: 'Customer name from ITSM to pass into the database entry'
+    required: true
+  customer_abbr:
+    type: string
+    description: '3 letter customer abbreviation'
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  detailed_desc:
+    type: string
+    description: 'Detailed description name from ITSM to pass into the database entry'
+    required: true
+  inc_number:
+    type: string
+    description: 'ITSM incident number'
+    required: true
+  inc_sys_id:
+    type: string
+    description: 'ITSM incident sys_id'
+    required: true
+  incident_state:
+    type: string
+    description: 'ITSM incident state'
+    required: true
+    default: '2'
+  short_desc:
+    type: string
+    description: 'Short description name from ITSM to pass into the database entry'
+    required: true
+  script_name:
+    type: string
+    description: 'c login script path'
+    required: true
+    default: '/home/bao_net_mon'
+  script_options:
+    type: string
+    description: 'c login script options'
+    required: true
+    default: '-noenable'
+  username:
+    type: string
+    description: 'Username to login to remote server'
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: 'Password to login to remote server'
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  version_command:
+    type: string
+    description: 'command to check version details'
+    required: true
+    default: show version
+  peer_ip:
+    type: string
+    description: 'peer_ip of the remote server'
+    required: false
+  community_string:
+    type: string
+    description: 'community string'
+    required: true
+    default: "{{ st2kv.system.snmp_string }}"
+  nms_poll_data:
+    type: string
+    description: 'nms poll data key'
+    required: true
+    default: "{{ st2kv.system.entuity_host }}"
+  configuration_item_name:
+    type: string
+    description: 'configuration_item_name'
+    required: true
+  rec_short_desc:
+    type: string
+    description: 'rec_short_desc'
+    required: true
+  rec_detailed_desc:
+    type: string
+    description: 'rec_detailed_desc'
+    required: true
+    
+

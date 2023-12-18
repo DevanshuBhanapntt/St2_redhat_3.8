@@ -1,0 +1,22 @@
+---
+description: >
+  'Parses version information from an Operating System string into a usable object.
+  Schema:
+    {"name": string,
+     "type": string,
+     "linux_distro": string,
+     "version": string,
+     "arch": string,
+     "version_parts": array,
+     "version_major": string,
+     "version_minor": string}'
+enabled: true
+runner_type: "python-script"
+entry_point: os_version_parse.py
+name: os_version_parse
+pack: ntt_monitoring
+parameters:
+  os_name:
+    type: string
+    description: "OS name of the VM (ex: 'Red Hat Enterprise Linux 7', 'Windows 2012 R2')"
+    required: true

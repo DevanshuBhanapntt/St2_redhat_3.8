@@ -1,0 +1,45 @@
+---
+version: 1.0
+
+description: "Checks the ITSM type from the config file and adds the given incident to the appropriate kv store variable"
+
+input:
+  - inc_id
+  - inc_st2_key
+
+vars:
+  - error_message: ""
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_itsm.config_vars_get
+    next:
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'servicenow' }}"
+        do:
+          - sn_inc_add
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'helix' }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get ITSM info please check the config file and try again"
+        do:
+          - fail
+
+  sn_inc_add:
+    action: ntt_itsm.servicenow_processing_incs_add
+    input:
+      inc_id: "{{ ctx().inc_id }}"
+      inc_st2_key: "{{ ctx().inc_st2_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not update the kv store with the given incident number!"
+        do:
+          - fail

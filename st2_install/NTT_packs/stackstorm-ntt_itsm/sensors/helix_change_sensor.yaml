@@ -1,0 +1,7 @@
+---
+  class_name: "helixchangesensor"
+  entry_point: "helix_change_sensor.py"
+  description: "Sensor to find and keep a list of all the open change in Helix."
+  poll_interval: 60
+  enabled: false
+    

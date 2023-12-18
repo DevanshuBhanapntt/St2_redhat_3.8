@@ -1,0 +1,48 @@
+---
+name: bgp_peer_script
+pack: ntt_monitoring
+description: "BGP Peer check for the given network device"
+runner_type: local-shell-script
+entry_point: bgp_peer_script.sh
+enabled: true
+parameters:
+  device:
+    type: string
+    description: "Device ip"
+    required: false
+    position: 1
+  peerip:
+    type: string
+    description: "Peer ip"
+    required: false
+    position: 2
+  logfile:
+    type: string
+    description: "Incident number"
+    required: false
+    position: 3
+  device_username:
+    type: string
+    description: "network device username"
+    required: false
+    position: 4
+  device_password:
+    type: string
+    description: "network device password"
+    required: false
+    position: 5
+  clogin_path:
+    type: string
+    description: "clogin script path"
+    required: false
+    position: 6
+  debug:
+    type: boolean
+    description: "enable debug"
+    required: false
+    default: true
+  timeout:
+    type: integer
+    description: "timeout"
+    required: false
+    default: 800

@@ -1,0 +1,492 @@
+---
+version: 1.0
+description: "Gather opsramp agent for the given VM "
+#platform: Network
+
+input:
+  - inc_number
+  - inc_sys_id
+  - ci_address  
+  - assignment_group     
+  - customer_abbr
+  - customer_name
+  - short_desc
+  - detailed_desc  
+  - incident_state
+  - incident_open_at
+  - rec_short_desc
+  - rec_detailed_desc 
+  - configuration_item_name
+
+
+vars:
+  
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""  
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""  
+  - am_status: "Success"
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0 
+  - winrm_password_key: ""
+  - winrm_port_key: ""
+  - winrm_username_key: ""
+  - winrm_ssl_key: ""
+  - winrm_verify_ssl_key: "" 
+  - ssh_tmp_dir_key: ""  
+  - SNMPWalk_login: false
+  - SNMPWalk_login_info: ""
+  - nw_clogin_script_server_IP: ""
+  - nw_clogin_script_server_password: ""
+  - nw_clogin_script_server_username: ""
+  - snmp_version: ""
+  - snmp_securityName: ""
+  - snmp_authProtocol: ""
+  - snmp_authKey: ""
+  - snmp_privKey: ""
+  - snmp_PrivProtocol: ""
+  - snmp_community: ""
+  - itsm_tool_name: ""
+  - nw_snmp_not_responding_ping_count: 4
+  - nw_snmp_not_responding_ping_recheck_limit: 2
+  - nw_snmp_not_responding_ping_sleep_interval: 60
+  - nw_snmp_not_responding_ping_success_packets_received: 3
+  - nw_snmp_not_responding_ping_packets_loss_threshold_per: 40
+  - snmp_walk_status_info: ""
+  - ping_output: ""
+  - ping_result: false
+  
+  
+output:
+  # Append stdout to the end of the error message
+  
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+ 
+ 
+
+tasks:
+  itsm_config_vars_get:
+    action: ntt_itsm.config_vars_get
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - itsm_tool_name: "{{ result().result['itsm_tool'] }}"
+        do:
+          - config_vars_get          
+      - when: "{{ failed() }}"
+        publish:
+          - itsm_tool_name: ""           
+        do:
+          - noop  
+          
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:        
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"      
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+          - device_username: "{{ result().result.device_username }}"
+          - device_password: "{{ result().result.device_password }}"          
+          - nw_clogin_script_server_IP: "{{ result().result.nw_clogin_script_server_IP }}"
+          - nw_clogin_script_server_username: "{{ result().result.nw_clogin_script_server_username }}"
+          - nw_clogin_script_server_password: "{{ result().result.nw_clogin_script_server_password }}"
+          - nw_clogin_script_path: "{{ result().result.nw_clogin_script_path }}"
+          - snmp_version: "{{ result().result.snmp_version }}"
+          - snmp_securityName: "{{ result().result.snmp_securityName }}"
+          - snmp_authProtocol: "{{ result().result.snmp_authProtocol }}"
+          - snmp_authKey: "{{ result().result.snmp_authKey }}"
+          - snmp_privKey: "{{ result().result.snmp_privKey }}"
+          - snmp_PrivProtocol: "{{ result().result.snmp_PrivProtocol }}"
+          - snmp_community: "{{ result().result.snmp_community }}"
+          - nw_nms_IP: "{{ result().result.nw_nms_IP }}"
+          - nw_snmp_not_responding_ping_count: "{{ result().result.nw_snmp_not_responding_ping_count }}"
+          - nw_snmp_not_responding_ping_recheck_limit: "{{ result().result.nw_snmp_not_responding_ping_recheck_limit }}"
+          - nw_snmp_not_responding_ping_sleep_interval: "{{ result().result.nw_snmp_not_responding_ping_sleep_interval }}"
+          - nw_snmp_not_responding_ping_success_packets_received: "{{ result().result.nw_snmp_not_responding_ping_success_packets_received }}"
+          - nw_snmp_not_responding_ping_packets_loss_threshold_per: "{{ result().result.nw_snmp_not_responding_ping_packets_loss_threshold_per }}"
+          
+           
+        do:
+          - check_incident_state
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - noop
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        do:
+          - incident_move_inprogress     
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2']) }}"
+        do:
+          - fail
+          
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"      
+    next:
+      - when: "{{ succeeded() and ( ctx().incident_state == '2') }}"
+        do:
+          - ping_test         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+  
+  ping_test:
+    action: ntt_monitoring.nw_device_ping
+    input:       
+      ci_address: "{{ ctx().ci_address }}"      
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      ping_count: "{{ ctx().nw_snmp_not_responding_ping_count |int }}"
+      ping_recheck_limit: "{{ ctx().nw_snmp_not_responding_ping_recheck_limit |int }}"
+      ping_sleep_interval: "{{ ctx().nw_snmp_not_responding_ping_sleep_interval |int }}"
+      ping_success_packets_received: "{{ ctx().nw_snmp_not_responding_ping_success_packets_received |int }}"
+      ping_packets_loss_threshold_per: "{{ ctx().nw_snmp_not_responding_ping_packets_loss_threshold_per |int }}"      
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:          
+          - ping_result: "{{ result().output.ping_result }}"
+          - ping_output: "{{ result().output.ping_output }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - validate_ping_result        
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - validate_ping_result
+  
+  validate_ping_result:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().ping_result }}"
+        do:
+          - check_recurrence
+      - when: "{{ succeeded() and not ctx().ping_result }}"
+        do:
+          - update_ping_final_results
+          
+  update_ping_final_results:
+    action: ntt_itsm.itsm_incident_update
+    input:         
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "The device {{ ctx().ci_address }} is not reachable.Refer the worknotes."
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        do:
+          - noop    
+          
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "nw_snmp_not_responding_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_check 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - check_device_snmpwalk           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+          
+  rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and  ctx().found_recurrence }} }}" 
+        do:
+          - rec_itsm_update_results    
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup 
+          
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:         
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_device_snmpwalk
+      - when: "{{ failed() }}"
+        do:
+          - get_end_timestamp
+          
+           
+  check_device_snmpwalk:
+    action: ntt_monitoring.bolt_plan
+    input:
+      os_type: "linux"
+      plan: "ntt_monitoring::nw_snmpwalk_check"
+      server_fqdn: "{{ ctx().nw_clogin_script_server_IP }}"
+      bolt_timeout: 300
+      params:
+        deviceip: "{{ ctx().ci_address }}"
+        version: "{{ ctx().snmp_version }}"
+        community: "{{ ctx().snmp_community }}"
+        nms_ip: "{{ctx().nw_nms_IP}}"         
+        oid: ".1.3.6.1.2.1.1.1"
+        securityname: "{{ ctx().snmp_securityName }}"
+        authprotocol: "{{ ctx().snmp_authProtocol }}"
+        authkey: "{{ ctx().snmp_authKey }}"
+        privkey: "{{ ctx().snmp_privKey }}"
+        privprotocol: "{{ ctx().snmp_PrivProtocol }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().nw_clogin_script_server_password }}"
+        ssh.user: "{{ ctx().nw_clogin_script_server_username }}"        
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"   
+        publish:
+          - SNMPWalk_login: "{{ result().output.run.result.SNMPWalk }}"          
+          - SNMPWalk_login_info: "{{ result().output.run.result.output }}"       
+        do:
+          - device_access_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - SNMPWalk_login: false 
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg }} {{ result().output.run.result.details.result_set[0].value._output }}"
+          - SNMPWalk_login_info: "{{ result().output.run.result.details.result_set[0].value._error.msg }} {{ result().output.run.result.details.result_set[0].value._output }}"
+          - run_error: true          
+        do:
+          - noop
+          
+  device_access_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:         
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().SNMPWalk_login_info }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - finish
+      - when: "{{ failed() }}"
+        do:
+          - get_end_timestamp
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and 'false' in ctx().SNMPWalk_login and not ctx().found_recurrence }}"
+        publish:
+          - am_status: "Failure"
+          - snmp_walk_status_info: "The reported device {{ ctx().ci_address }} SNMP is not responding "
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and 'false' in ctx().SNMPWalk_login and ctx().found_recurrence }}"
+        publish:
+          - am_status: "Failure"
+          - snmp_walk_status_info: "The reported device {{ ctx().ci_address }} SNMP is not responding "
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and 'true' in ctx().SNMPWalk_login and ctx().found_recurrence }}"
+        publish:
+          - am_status: "Failure"
+          - snmp_walk_status_info: "The reported device {{ ctx().ci_address }} SNMP is not responding "
+        do:
+          - itsm_escalate_recurrence           
+      - when: "{{ succeeded() and 'true' in ctx().SNMPWalk_login and not ctx().found_recurrence }}"
+        publish:
+          - am_status: "Success"
+          - snmp_walk_status_info: "The reported device {{ ctx().ci_address }}  SNMP is responding "
+        do:
+          - itsm_close          
+      - when: "{{ failed() }}"
+        do:
+          - noop           
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it. {{ ctx().snmp_walk_status_info }} \n  {{ ctx().SNMPWalk_login_info }} "
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup 
+          
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents.Refer the below work notes"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details."
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup          
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:         
+          - get_end_timestamp      
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+          
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('check_device_snmpwalk').end_timestamp }}"
+        do:
+          - insert_db      
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "nw_snmp_not_responding"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if  ctx().SNMPWalk_login and ctx().found_recurrence  %}
+          Automation is escalating this incident as it was unable to resolve it. {{ ctx().SNMPWalk_login_info }}         
+          {{ ctx().found_recurrence_value }}                  
+          {% endif %} 
+          {% if  ctx().run_error %}
+          Automation is escalating this incident as it was unable to resolve it. {{ ctx().SNMPWalk_login_info }}          
+          {{ ctx().found_recurrence_value }}                  
+          {% endif %}           
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "{{ ctx().itsm_tool_name }}"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "nw_snmp_not_responding"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Network"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+          
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and (ctx().run_error or not ctx().SNMPWalk_login ) }}"
+        do:
+          - fail

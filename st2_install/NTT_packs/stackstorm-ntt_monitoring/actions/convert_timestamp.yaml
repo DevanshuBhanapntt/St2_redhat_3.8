@@ -1,0 +1,20 @@
+---
+description: "Converts StackStorm timestamp into SQL datetime object and calculates the duration of a workflow"
+enabled: true
+runner_type: "python-script"
+entry_point: convert_timestamp.py
+name: convert_timestamp
+pack: ntt_monitoring
+parameters:
+  data_dict:
+    type: object
+    description: "SQL data dictionary"
+    required: true
+  end_timestamp:
+    type: string
+    description: "Timestamp when the workflow has finished executing"
+    required: true
+  start_timestamp:
+    type: string
+    description: "Timestamp when the workflow has begun execution"
+    required: true

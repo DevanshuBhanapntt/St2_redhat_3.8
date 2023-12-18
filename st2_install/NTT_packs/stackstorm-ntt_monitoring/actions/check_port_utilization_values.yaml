@@ -1,0 +1,33 @@
+---
+name: check_port_utilization_values
+pack: ntt_monitoring
+description: "Checks the values discovered during port utilization workflow against a given threshold"
+runner_type: orquesta
+entry_point: workflows/check_port_utilization_values.yaml
+enabled: true
+parameters:
+  fail_check_counter:
+    type: integer
+    description: "Number that will be incremented if the threshold check fails"
+    required: true
+    default: 0
+  reliability:
+    type: integer
+    description: "Reliability rate of a network interface"
+    required: true
+  rxload:
+    type: integer
+    description: "Receiving load of a network interface"
+    required: true
+  threshold:
+    type: integer
+    description: "Utilization threshold to compare against discovered values"
+    required: true
+  txload:
+    type: integer
+    description: "Trasmission load of a network interface"
+    required: true
+  vendor:
+    type: string
+    description: "Vendor fo the network device"
+    required: true

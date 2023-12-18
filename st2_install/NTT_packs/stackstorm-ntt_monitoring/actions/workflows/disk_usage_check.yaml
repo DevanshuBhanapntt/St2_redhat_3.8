@@ -1,0 +1,731 @@
+---
+version: 1.0
+description: Gather disk utilization information for the given VM and disk name
+#platform: Windows
+
+input:
+  - assignment_group
+  - ci_address
+  - cleanmgr_tasks
+  - compress_file_age_days
+  - compress_file_exts
+  - compress_file_min_size_mb
+  - compress_files
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - directories
+  - disk_name
+  - file_extensions
+  - file_names
+  - inc_number
+  - inc_sys_id
+  - max_failures
+  - os_type
+  - profile_age_days
+  - recheck_limit
+  - remove_profiles
+  - remove_temp_files
+  - remove_temp_ie_files
+  - short_desc
+  - sleep_interval
+  - configuration_item_name
+  - rec_short_desc
+  - rec_detailed_desc
+  - ssh_password_key
+  - ssh_username_key
+  - ssh_tmp_dir_key
+  - temp_folders
+  - threshold_mb
+  - threshold_percent
+  - threshold_type
+  - valid_os_versions
+  - winrm_password_key
+  - winrm_port_key
+  - winrm_username_key
+  - winrm_ssl_key
+  - winrm_verify_ssl_key
+
+vars:
+  # Number of times the disk is consecutively under the threshold
+  - consecutive_fails: 0
+  - disk_free_space: ""
+  - disk_size: ""
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""
+  - files_deleted: 0
+  - recheck_total: 0
+  - recheck_needed: false
+  - run: null
+  - run_error: false
+  - run_error_clean: false
+  - run_error_os: false
+  - run_error_ping: false
+  - run_error_cleanup: false
+  - run_error_close: false
+  - run_error_esc: false
+  - run_error_info: false
+  - run_error_kv: false
+  - run_error_rec: false
+  - run_error_threshold: false
+  - start_timestamp: ""
+  - uptime_value: null
+  - vm_os: ""
+  - output: ""
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - worknote: ""
+  - check_value: 0
+  - thresold_percent_now: 0
+
+output:
+  - disk_free_space: "{{ ctx().disk_free_space }}"
+  - disk_size: "{{ ctx().disk_size }}"
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - files_deleted: "{{ ctx().files_deleted }}"
+  - run: "{{ ctx().run }}"
+  - uptime_value: "{{ ctx().uptime_value }}"
+  - vm_os: "{{ ctx().vm_os }}"
+  - check_value: "{{ ctx().check_value }}"
+  - thresold_percent_now: "{{ ctx().thresold_percent_now }}"
+
+tasks:
+  ###########################################
+  # Get System Info
+  ###########################################
+
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_ssh_password_key: "{{ ctx().ssh_password_key }}"
+        bolt_ssh_username_key: "{{ ctx().ssh_username_key }}"
+        bolt_ssh_tmp_dir_key: "{{ ctx().ssh_tmp_dir_key }}"
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"
+        disk_clean_cleanmgr_tasks: "{{ ctx().cleanmgr_tasks }}"
+        disk_clean_compress_files: "{{ ctx().compress_files }}"
+        disk_clean_compress_file_age_days: "{{ ctx().compress_file_age_days }}"
+        disk_clean_compress_file_exts: "{{ ctx().compress_file_exts }}"
+        disk_clean_compress_file_min_size_mb: "{{ ctx().compress_file_min_size_mb }}"
+        disk_clean_directories: "{{ ctx().directories }}"
+        disk_clean_file_exts: "{{ ctx().file_extensions }}"
+        disk_clean_file_names: "{{ ctx().file_names }}"
+        disk_clean_profile_age_days: "{{ ctx().profile_age_days }}"
+        disk_clean_remove_profile: "{{ ctx().remove_profiles }}"
+        disk_clean_remove_temp_files: "{{ ctx().remove_temp_files }}"
+        disk_clean_remove_temp_ie_files: "{{ ctx().remove_temp_ie_files }}"
+        disk_clean_temp_folders: "{{ ctx().temp_folders }}"
+        threshold_disk_mb: "{{ ctx().threshold_mb }}"
+        threshold_disk_percent: "{{ ctx().threshold_percent }}"
+        threshold_disk_type: "{{ ctx().threshold_type }}"
+        max_failures: "{{ ctx().max_failures }}"
+        sleep_interval: "{{ ctx().sleep_interval }}"
+        recheck_limit: "{{ ctx().recheck_limit }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - bolt_timeout: "{{ result().result.disk_bolt_timeout if 'disk_bolt_timeout' in result().result else '' }}"
+          - cleanmgr_tasks: "{{ true if result().result.disk_clean_cleanmgr_tasks == 'true' and 'disk_clean_cleanmgr_tasks' in result().result else false }}"
+          - compress_files: "{{ true if result().result.disk_clean_compress_files == 'true' and 'disk_clean_compress_files' in result().result else false }}"
+          - compress_file_age_days: "{{ result().result.disk_clean_compress_file_age_days if 'disk_clean_compress_file_age_days' in result().result else '' }}"
+          - compress_file_exts: "{{ result().result.disk_clean_compress_file_exts if 'disk_clean_compress_file_exts' in result().result else '' }}"
+          - compress_file_min_size_mb: "{{ result().result.disk_clean_compress_file_min_size_mb if 'disk_clean_compress_file_min_size_mb' in result().result else '' }}"
+          - directories: "{{ result().result.disk_clean_directories if 'disk_clean_directories' in result().result else '' }}"
+          - file_extensions: "{{ result().result.disk_clean_file_exts if 'disk_clean_file_exts' in result().result else '' }}"
+          - file_names: "{{ result().result.disk_clean_file_names if 'disk_clean_file_names' in result().result else '' }}"
+          - profile_age_days: "{{ result().result.disk_clean_profile_age_days if 'disk_clean_profile_age_days' in result().result else '' }}"
+          - remove_profiles: "{{ true if result().result.disk_clean_remove_profile == 'true' and 'disk_clean_remove_profile' in result().result else false }}"
+          - remove_temp_files: "{{ true if result().result.disk_clean_remove_temp_files == 'true' and 'disk_clean_remove_temp_files' in result().result else false }}"
+          - remove_temp_ie_files: "{{ true if result().result.disk_clean_remove_temp_ie_files == 'true' and 'disk_clean_remove_temp_ie_files' in result().result else false }}"
+          - temp_folders: "{{ result().result.disk_clean_temp_folders if 'disk_clean_temp_folders' in result().result else '' }}"
+          - threshold_mb: "{{ result().result.threshold_disk_mb | int if 'threshold_disk_mb' in result().result else '' }}"
+          - threshold_percent: "{{ result().result.threshold_disk_percent if 'threshold_disk_percent' in result().result else '' }}"
+          - threshold_type: "{{ result().result.threshold_disk_type if 'threshold_disk_type' in result().result else '' }}"
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - max_failures: "{{ result().result.max_failures | int if 'max_failures' in result().result else '' }}"
+          - sleep_interval: "{{ result().result.sleep_interval | int if 'sleep_interval' in result().result else '' }}"
+          - recheck_limit: "{{ result().result.recheck_limit | int if 'recheck_limit' in result().result else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      os_type: "{{ ctx().os_type }}"
+      recheck_limit: 5
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - uptime_value: "{{ result().output.uptime_value }}"
+        do:
+          - os_info_get
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - get_end_timestamp
+
+  os_info_get:
+    action: ntt_monitoring.windows_os_info_get
+    input:
+      host: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - os_name: "{{ result().stdout.split('|')[0] }}"
+        do:
+          - os_version_parse
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().error }}"
+          - run_error: true
+          - run_error_os: true
+        do:
+          - itsm_cleanup
+
+  os_version_parse:
+    action: ntt_monitoring.os_version_parse
+    input:
+      os_name: "{{ ctx().os_name }}"
+    next:
+      - when: "{{ succeeded() and result().result.version in ctx().valid_os_versions }}"
+        publish:
+          - vm_os: "{{ result().result }}"
+        do:
+          - check_recurrence
+      - when: "{{ succeeded() and result().result.version not in ctx().valid_os_versions }}"
+        publish:
+          - error_message: "Disk utilization info is only supported for {{ ctx().valid_os_versions }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:       
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "Win_disk_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}" 
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"      
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results 
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - disk_info_get           
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+          
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:          
+      inc_id: "{{ ctx().inc_sys_id }}"      
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - disk_info_get
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  disk_info_get:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::disk_usage_check"
+      bolt_timeout: 1500
+      params:
+        ci_address: "{{ ctx().ci_address }}"
+        disk_name: "{{ ctx().disk_name }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() and ctx().threshold_type == 'percent' }}"
+        publish:
+          - disk_free_space: "{{ result().output.run.result.free_space }}"
+          - disk_size: "{{ result().output.run.result.size }}"
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+          - check_value: "{{ 100 - (result().output.run.result.free_space / result().output.run.result.size) * 100 }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - thresholds_check
+      - when: "{{ succeeded() and ctx().threshold_type == 'mb' }}"
+        publish:
+          - disk_free_space: "{{ result().output.run.result.free_space }}"
+          - disk_size: "{{ result().output.run.result.size }}"
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+          - check_value: "{{ ( ctx().threshold_mb | int ) * 1024 * 1024 }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - thresholds_check
+      - when: "{{ failed() and ctx().recheck_total < ( ctx().max_failures - 1 ) }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - disk_info_get
+      - when: "{{ failed() and ctx().recheck_total == ( ctx().max_failures - 1 ) }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run }}"
+          - run_error: true
+          - run_error_info: true
+        do:
+          - itsm_cleanup
+
+  thresholds_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: true
+      max_failures: "{{ ctx().max_failures }}"
+      rerun_limit: "{{ ctx().recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      fail_check_counter: "{{ ctx().consecutive_fails }}"
+      sleep_interval: "5"
+      threshold: "{{ ctx().threshold_percent if ctx().threshold_type == 'percent' else ctx().check_value }}"
+      threshold_type: "{{ 'upper' if ctx().threshold_type == 'percent' else 'lower' }}"
+      value: "{{ ctx().check_value if ctx().threshold_type == 'percent' else ctx().disk_free_space }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - consecutive_fails: "{{ result().result.fail_check_counter }}"
+        do:
+          - disk_info_get
+      - when: "{{ succeeded() and not result().result.rerun_action and not result().result.threshold_passed }}"
+        publish:
+          - consecutive_fails: "{{ result().result.fail_check_counter }}"
+        do:
+          - disk_cleanup
+      - when: "{{ succeeded() and not result().result.rerun_action and result().result.threshold_passed }}"
+        publish:
+          - consecutive_fails: "{{ result().result.fail_check_counter }}"
+          - worknote: |
+              Affected Drive {{ ctx().disk_name }} no longer exceeds threshold.
+              Disk Free Space : {{ ctx().disk_free_space }}
+              disk_size : {{ ctx().disk_size }}
+        do:      
+          - recurrence_on_success
+      - when: "{{ failed() }}"
+        publish:
+          - run_error: true
+          - run_error_threshold: true
+        do:
+          - get_end_timestamp
+  
+  recurrence_on_success:
+    action: core.noop
+    next:
+      - when: "{{ ctx().found_recurrence }}"
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ not ctx().found_recurrence }}"
+        do:
+          - itsm_close
+
+  ###########################################
+  # Windows Disk Cleanup
+  ###########################################
+
+  disk_cleanup:
+    action: ntt_monitoring.bolt_plan
+    input:
+      bolt_timeout: "{{ ctx().bolt_timeout | int }}"
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::disk_cleanup"
+      params:
+        ci_address: "{{ ctx().ci_address }}"
+        cleanmgr_tasks: "{{ ctx().cleanmgr_tasks }}"
+        compress_files: "{{ ctx().compress_files }}"
+        compress_file_age_days: "{{ ctx().compress_file_age_days | int }}"
+        compress_file_exts: "{{ ctx().compress_file_exts }}"
+        compress_file_min_size_mb: "{{ ctx().compress_file_min_size_mb | int }}"
+        directories: "{{ ctx().directories }}"
+        disk_name: "{{ ctx().disk_name }}"
+        file_exts: "{{ ctx().file_extensions }}"
+        file_names: "{{ ctx().file_names }}"
+        profile_age_days: "{{ ctx().profile_age_days | int }}"
+        remove_profiles: "{{ ctx().remove_profiles }}"
+        remove_temp_files: "{{ ctx().remove_temp_files }}"
+        remove_temp_ie_files: "{{ ctx().remove_temp_ie_files }}"
+        temp_folders: "{{ ctx().temp_folders }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      # If any files were deleted then recheck the disk utilization
+      - when: "{{ succeeded() }}"
+        publish:
+          - files_deleted: "{{ result().output.run.result.files_deleted }}"
+          - output: "{{ result().output.run.result.output }}"
+          - run: "{{ result().output.run }}"
+          - recheck_needed: "{{ true if result().output.run.result.files_deleted == 0 else false }}"
+        do:
+          - itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run }}"
+          - run_error: true
+          - run_error_clean: true
+        do:
+          - itsm_cleanup
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().output }}"
+    next:
+      - when: "{{ completed() and ctx().files_deleted > 0 }}"
+        do:
+          - disk_info_recheck
+      - when: "{{ completed() and ctx().files_deleted == 0 }}"
+        publish:
+          - worknote: |
+              The number of files deleted by automation is 0. Manual intervention required.
+        do:
+          - itsm_escalate
+
+  disk_info_recheck:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "{{ ctx().os_type }}"
+      plan: "ntt_monitoring::disk_usage_check"
+      bolt_timeout: 1500
+      params:
+        ci_address: "{{ ctx().ci_address }}"
+        disk_name: "{{ ctx().disk_name }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() and ctx().threshold_type == 'percent' }}"
+        publish:
+          - disk_free_space: "{{ result().output.run.result.free_space }}"
+          - disk_size: "{{ result().output.run.result.size }}"
+          - thresold_free_percent_now: "{{ (ctx().disk_free_space / ctx().disk_size) * 100 }}"
+          - thresold_used_percent_now: "{{ 100 - (ctx().disk_free_space / ctx().disk_size) * 100 }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - thresholds_recheck_percent
+      - when: "{{ succeeded() and ctx().threshold_type == 'mb' }}"
+        publish:
+          - disk_free_space: "{{ result().output.run.result.free_space }}"
+          - disk_size: "{{ result().output.run.result.size }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - thresholds_recheck_mb
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  thresholds_recheck_percent:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and 100 - (ctx().disk_free_space / ctx().disk_size) * 100 >= ctx().threshold_percent | int and not ctx().found_recurrence }}"
+        publish:
+          - worknote: "Usage on Affected Drive {{ ctx().disk_name }} still exceeds threshold(now at {{ ctx().thresold_used_percent_now }} % used)"
+        do:
+          # Disk cleanup did not work so escalate ServiceNow ticket
+          - itsm_escalate
+      - when: "{{ succeeded() and 100 - (ctx().disk_free_space / ctx().disk_size) * 100 >= ctx().threshold_percent | int and ctx().found_recurrence }}"
+        publish:
+          - worknote: "Usage on Affected Drive {{ ctx().disk_name }} still exceeds threshold(now at {{ ctx().thresold_used_percent_now }} % used)"
+        do:
+          # Disk cleanup did not work so escalate ServiceNow ticket
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and 100 - (ctx().disk_free_space / ctx().disk_size) * 100 < ctx().threshold_percent | int and not ctx().found_recurrence }}"
+        publish:
+          - worknote: "Affected Drive {{ ctx().disk_name }} no longer exceeds threshold(now at {{ ctx().thresold_used_percent_now }} % used)"
+        do:
+          # Disk below threshold after cleanup so update and close ticket
+          - itsm_close
+      - when: "{{ succeeded() and 100 - (ctx().disk_free_space / ctx().disk_size) * 100 < ctx().threshold_percent | int and ctx().found_recurrence }}"
+        publish:
+          - worknote: "Affected Drive {{ ctx().disk_name }} no longer exceeds threshold(now at {{ ctx().thresold_used_percent_now }} % used)"
+        do:
+          # Disk below threshold after cleanup so update and close ticket
+          - itsm_escalate_recurrence
+
+  thresholds_recheck_mb:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().disk_free_space <= ctx().threshold_mb * 1024 * 1024 and not ctx().found_recurrence }}"
+        publish:
+          - worknote: "Usage on Affected Drive {{ ctx().disk_name }} still exceeds threshold(now at {{ ctx().disk_free_space }} MB free)"
+        do:
+          # Disk cleanup did not work so escalate ServiceNow ticket
+          - itsm_escalate
+      - when: "{{ succeeded() and ctx().disk_free_space <= ctx().threshold_mb * 1024 * 1024 and ctx().found_recurrence }}"
+        publish:
+          - worknote: "Usage on Affected Drive {{ ctx().disk_name }} still exceeds threshold(now at {{ ctx().disk_free_space }} MB free)"
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and ctx().disk_free_space > ctx().threshold_mb * 1024 * 1024 and not ctx().found_recurrence }}"
+        publish:
+          - worknote: "Affected Drive {{ ctx().disk_name }} no longer exceeds threshold(now at {{ ctx().disk_free_space }} MB free)"
+        do:
+          # Disk below threshold after cleanup so update and close ticket
+          - itsm_close
+      - when: "{{ succeeded() and ctx().disk_free_space > ctx().threshold_mb * 1024 * 1024 and ctx().found_recurrence }}"
+        publish:
+          - worknote: "Affected Drive {{ ctx().disk_name }} no longer exceeds threshold(now at {{ ctx().disk_free_space }} MB free)"
+        do:
+          - itsm_escalate_recurrence
+
+
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is escalating this incident as it was unable to resolve it and due to recurrence incidents.
+        {{ ctx().worknote }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - run_error_rec: true
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is resolving the incident. See work log for details.
+        {{ ctx().worknote }}
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_sys_id }}!"
+          - run_error_close: true
+        do:
+          - get_end_timestamp
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is escalating the ticket as it was unable to resolve it.
+        
+        {{ ctx().error_message }}
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_sys_id }}!"
+          - run_error_cleanup: true
+        do:
+          - get_end_timestamp
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ completed() }}"
+        publish:
+          - run_error_kv: true
+        do:
+          - get_end_timestamp
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is escalating this incident as it was unable to resolve it.
+        {{ ctx().worknote }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - run_error_esc: true
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_sys_id }}!"
+          - run_error_esc: true
+        do:
+          - get_end_timestamp
+
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ ctx().run_error_ping or ctx().run_error_threshold }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_info }}"
+        publish:
+          - end_timestamp: "{{ task('disk_info_get').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_clean }}"
+        publish:
+          - end_timestamp: "{{ task('disk_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_threshold }}"
+        publish:
+          - end_timestamp: "{{ task('thresholds_check').end_timestamp }}"
+        do:
+          - insert_db          
+      - when: "{{ ctx().run_error_rec }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_escalate_recurrence').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_close }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_close').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_cleanup }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_esc }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ ctx().run_error_kv }}"
+        publish:
+          - end_timestamp: "{{ task('update_kv_var').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "disk_usage_check"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if not ctx().run_error %}
+          Disk utilization for {{ ctx().disk_name }} is at {{ (100 - (ctx().disk_free_space / ctx().disk_size) * 100) }}%
+          {% endif %}
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "disk_usage_check"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Windows"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail

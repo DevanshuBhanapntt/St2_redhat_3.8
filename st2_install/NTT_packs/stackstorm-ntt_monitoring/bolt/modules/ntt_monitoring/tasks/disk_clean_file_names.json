@@ -1,0 +1,20 @@
+{
+  "description": "Remove all files with the given names(s) on the given disk and folder path",
+  "implementations": [
+    {"name": "disk_clean_file_names.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to check on the server",
+      "type": "String[1]"
+    },
+    "file_names": {
+      "description": "List of file names to delete from the disk",
+      "type": "Array[String]"
+    }
+  }
+}

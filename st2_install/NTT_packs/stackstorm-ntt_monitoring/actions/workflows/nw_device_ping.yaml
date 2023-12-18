@@ -1,0 +1,172 @@
+---
+version: 1.0
+description: "This workflow is used to determine if the CI to be tested can be reached by ping "
+#platform: Network
+
+input:
+  - ci_address
+  - inc_sys_id
+  - ping_count
+  - ping_recheck_limit
+  - ping_sleep_interval
+  - ping_success_packets_received
+  - ping_packets_loss_threshold_per
+  - customer_abbr
+  - customer_name
+  - inc_number 
+
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - ping_result: false
+  - recheck_total: 0
+  - run_error: false
+  - run_error_ping: false
+  - run_error_cmd_ping: false
+  - line_to_find: 7
+  - split_line: ""
+  - packets_received: ""
+  - packets_loss_percentage: ""
+  - packets_loss: ""
+  - ping_output: ""
+
+output:
+  - error_message: "{{ ctx().error_message }}" 
+  - ping_result: "{{ ctx().ping_result }}"
+  - ping_output: "{{ ctx().ping_output }}"
+  - split_line: "{{ ctx().split_line }}" 
+  - packets_received: "{{ ctx().packets_received }}"
+  - packets_loss_percentage: "{{ ctx().packets_loss_percentage }}" 
+  - packets_loss: "{{ ctx().packets_loss }}" 
+
+tasks:
+
+  start_workflow:
+    action: core.noop     
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        do:
+          - ping_test
+          
+  ping_test:
+    action: core.local
+    input: 
+      cmd: "ping -c {{ ctx().ping_count }} {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().succeeded }}" 
+          - ping_output: "{{ result().stdout }}" 
+          - run_error_cmd_ping: false
+        do:
+          - get_ping_result
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_output: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_cmd_ping: true
+        do:
+          - get_ping_result
+          
+  get_ping_result:
+    action: core.local
+    input: 
+      cmd: "echo \"{{ ctx().ping_output }}\" | grep 'packets'"
+    next:
+      - when: "{{ succeeded() and 'packets' in result().stdout }}"
+        publish:
+          - split_line: "{{ result().stdout }}"
+          - run_error_cmd_ping: false
+        do:
+          - verify_ping_test
+      - when: "{{ succeeded() and 'packets' not in result().stdout }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_output: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_cmd_ping: false
+        do:
+          - threshold_check
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_output: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_cmd_ping: true
+        do:
+          - threshold_check
+          
+  verify_ping_test:
+    action: core.noop
+    next:
+      - when: "{{ ctx().ping_result }}"
+        publish:
+          - packets_received: "{{ ctx().split_line.split(' ')[3] }}"
+          - packets_loss_percentage: "{{ ctx().split_line.split(' ')[5] }}"
+          - packets_loss: "{{ ctx().packets_loss_percentage.split('%')[0]}}"           
+          - run_error_cmd_ping: false
+          - ping_result: true
+        do:
+          - check_itsm_update
+      - when: "{{ not ctx().ping_result }}"
+        publish:
+          - run_error_cmd_ping: true          
+        do:
+          - check_itsm_update
+  
+  check_itsm_update:
+    action: core.noop     
+    next:
+      - when: "{{ succeeded() and (ctx().inc_sys_id is not none )  }}"
+        do:
+          - itsm_update_results
+      - when: "{{ succeeded() and (ctx().inc_sys_id is none) and not ctx().run_error_cmd_ping and  ctx().packets_received | int >=  ctx().ping_success_packets_received | int and  ctx().packets_loss | int <=  ctx().ping_packets_loss_threshold_per | int }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and (ctx().inc_sys_id is none ) and ctx().run_error_cmd_ping  }}"
+        do:
+          - threshold_check
+          
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:       
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().ping_output }}"
+    next:
+      - when: "{{ completed() and not ctx().run_error_cmd_ping and  ctx().packets_received | int >=  ctx().ping_success_packets_received | int and  ctx().packets_loss | int <=  ctx().ping_packets_loss_threshold_per | int }}"
+        do:
+          - noop
+      - when: "{{ completed() and ctx().run_error_cmd_ping }}"
+        do:
+          - threshold_check
+          
+  threshold_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: false
+      rerun_limit: "{{ ctx().ping_recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      sleep_interval: "{{ ctx().ping_sleep_interval }}"
+      timeout: "{{ ctx().ping_sleep_interval + 30 }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - error_message: "Device {{ ctx().ci_address }} could not be reached by ping"
+          - run_error_ping: true
+          - run_error: true
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - fail          

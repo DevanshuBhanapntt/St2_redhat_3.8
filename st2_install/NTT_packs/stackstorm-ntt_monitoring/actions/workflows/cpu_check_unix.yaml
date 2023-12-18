@@ -1,0 +1,715 @@
+---
+version: 1.0
+description: Gather CPU utilization information for the given VM and CPU name
+#platform: Linux
+#Datastore Keys Used: threshold_cpu_high, unix_cpu_max_failures , unix_cpu_pending_mins ,unix_cpu_recheck_limit, linux.username, linux.password , solaris.username , solaris.password , unix_high_cpu_rec_days
+#ntt_monitoring config file values used : threshold_cpu_high, unix_cpu_max_failures , unix_cpu_pending_mins ,unix_cpu_recheck_limit, ssh_username, ssh_password , ssh_solaris_username , ssh_solaris_password
+
+input:
+
+  - assignment_group
+  - ci_address
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - max_failures
+  - os_type
+  - recheck_limit
+  - short_desc
+  - incident_state
+  - threshold_percent
+  - ssh_password_key
+  - ssh_username_key
+  - ssh_tmp_dir_key
+  - rec_short_desc
+  - rec_detailed_desc
+  - configuration_item_name
+  - local_server_ip
+  - local_server_user_key
+  - local_server_pass_key
+  - os_name
+
+
+vars:
+  # Number of times the CPU is consecutively above the threshold
+  - consecutive_fails: 0
+  - cpu_info: ""
+  - cpu_passed: true
+  - cpu_percent_usage: null
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""
+  - recheck_total: 0
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""
+  - uptime_value: null
+  - bolt_timeout: 1500
+  - threshold_passed: true
+  - am_status: "Success"
+  - found_recurrence_inc_cnt: 0
+  - pending_mins: 45
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - bolt_fail: true
+  - max_threshold_failed: false
+
+output:
+  - cpu_info: "{{ ctx().cpu_info }}"
+  - cpu_percent_usage: "{{ ctx().cpu_percent_usage }}"
+  # Append stdout to the end of the error message
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+  - recheck_total: "{{ ctx().recheck_total }}"
+  - os_name: "{{ ctx().os_name }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_ssh_password_key: "{{ ctx().ssh_password_key }}"
+        bolt_ssh_username_key: "{{ ctx().ssh_username_key }}"
+        bolt_ssh_tmp_dir_key: "{{ ctx().ssh_tmp_dir_key }}"
+        threshold_cpu_high: "{{ ctx().threshold_percent }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - threshold_percent: "{{ result().result.threshold_cpu_high | int if 'threshold_cpu_high' in result().result else '' }}"
+          - max_failures: "{{ result().result.unix_cpu_max_failures | int if 'unix_cpu_max_failures' in result().result else '' }}"
+          - sleep_interval: "{{ result().result.sleep_interval | int if 'sleep_interval' in result().result else '' }}"
+          - recheck_limit: "{{ result().result.unix_cpu_recheck_limit | int if 'unix_cpu_recheck_limit' in result().result else '' }}"
+          - pending_mins: "{{ result().result.unix_cpu_pending_mins | int if 'unix_cpu_pending_mins' in result().result else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+          - ssh_password: "{{ result().result.connections.ssh_password if 'connections' in result().result and 'ssh_password' in result().result.connections else '' }}"
+          - ssh_username: "{{ result().result.connections.ssh_username if 'connections' in result().result and 'ssh_username' in result().result.connections else '' }}"
+          - ssh_solaris_username: "{{ result().result.connections.ssh_solaris_username if 'connections' in result().result and 'ssh_solaris_username' in result().result.connections else '' }}"
+          - ssh_solaris_password: "{{ result().result.connections.ssh_solaris_password if 'connections' in result().result and 'ssh_solaris_password' in result().result.connections else '' }}"
+        do:
+          - Get_os_input
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  Get_os_input:
+    action: core.noop
+    next:
+      - when: "{{ ctx().os_name != '' }}"
+        do:
+          - check_incident_state
+      - when: "{{ ctx().os_name == '' }}"
+        do:
+          - Get_os_type
+
+  Get_os_type:
+    action: ntt_itsm.itsm_table_getentries
+    input:
+      schema_name: "cmdb_ci"
+      match_condition: "name={{ ctx().configuration_item_name }}"
+    next:
+      - when: "{{ succeeded()  and result().result | join(' ') != '' }}"
+        publish:
+          - os_name: "{{ result().result[0].category }}"
+        do:
+          - check_incident_state
+      - when: "{{ succeeded() and result().result | join(' ') == '' }}"
+        publish:
+          - os_name: "Linux Server"
+        do:
+          - check_incident_state
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Automation not able to find the os type."
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state in ['2']) }}"
+        do:
+          - ping_test
+      - when: "{{ succeeded() and (ctx().incident_state in ['-5']) }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2','-5']) }}"
+        do:
+          - fail
+          
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() and ( ctx().incident_state in ['-5']) }}"
+        do:
+          - get_recheck_total
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  
+  get_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - recheck_total: "{{ result().result }}"
+        do:
+          - get_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  get_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}"
+        publish:
+          - consecutive_fails: "{{ result().result }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      os_type: "{{ ctx().os_type }}"
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+        do:
+          - itsm_cleanup
+  
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "unix_high_cpu_rec_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - rec_update: "{{ result().result.value }}"
+        do:
+          - rec_itsm_update_check
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - rec_update: |
+              Automation found no recurring incidents.
+              CI Name: {{ ctx().configuration_item_name }}
+              IP Address: {{ ctx().ci_address }}
+        do:
+          - rec_itsm_update_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state in ['2']) }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ succeeded() and (ctx().incident_state in ['-5']) }}"
+        do:
+          - cpu_check_unix
+  
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().rec_update }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - cpu_check_unix
+      - when: "{{ failed() }}"
+        do:
+          - noop
+  
+  cpu_check_unix:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().local_server_ip }}"
+      os_type: "{{ ctx().os_type }}"
+      bolt_timeout: "{{ ctx().bolt_timeout}}"
+      plan: "ntt_monitoring::cpu_check_unix"
+      params:
+        status: "{{ ctx().incident_state }}"
+        threshold: "{{ ctx().threshold_percent}}"
+        host_username: "{{ ctx().ssh_username }}"
+        host_password: "{{ ctx().ssh_password }}"
+        solaris_username: "{{ ctx().ssh_solaris_username }}"
+        solaris_password: "{{ ctx().ssh_solaris_password }}"        
+        hostname: "{{ ctx().ci_address }}"
+        os_name: "{{ ctx().os_name }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().local_server_pass_key }}"
+        ssh.user: "{{ ctx().local_server_user_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - cpu_info: "{{ result().output.run.result.output }}"
+          - cpu_percent_usage: "{{ result().output.run.result.utilization }}"
+          - recheck_total: "{{ ctx().recheck_total + 1 }}"
+          - run: "{{ result().output.run }}"
+          - bolt_fail: false
+          - cpu_notes: |
+              The current CPU utilization is {{ ctx().cpu_percent_usage }}% .Refer the below results.  
+              
+              {{ ctx().cpu_info }}
+        do:
+          - itsm_update_results
+          - threshold_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_msg: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - error_out: "{{ result().output.run.result.details.result_set[0].value._output }}"
+          - run_error: true
+          - run: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - error_message: | 
+                    Automation doesnot have access to the server {{ ctx().configuration_item_name }}, Refer the below results.  
+              
+                    {{ ctx().error_msg }}
+                    {{ ctx().error_out }}
+        do:
+          - itsm_cleanup
+          
+  threshold_check:
+    action: ntt_monitoring.threshold_check
+    input:
+      check_value: true
+      max_failures: "{{ ctx().max_failures }}"
+      rerun_limit: "{{ ctx().recheck_limit }}"
+      rerun_total: "{{ ctx().recheck_total }}"
+      fail_check_counter: "{{ ctx().consecutive_fails }}"
+      sleep_interval: 5
+      threshold: "{{ ctx().threshold_percent }}"
+      threshold_type: "upper"
+      value: "{{ ctx().cpu_percent_usage | int }}"
+    next:
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - consecutive_fails: "{{ result().result.fail_check_counter }}"
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - add_recheck_total
+      - when: "{{ succeeded() and not result().result.threshold_passed  }}"
+        publish:
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - add_consecutive_fails
+      - when: "{{ succeeded() and result().result.rerun_action }}"
+        publish:
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - itsm_pending
+      - when: "{{ succeeded() and not result().result.rerun_action }}"
+        publish:
+          - consecutive_fails: 0
+          - threshold_passed: "{{ result().result.threshold_passed }}"
+        do:
+          - get_esc_reason
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error checking the threshold for ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  add_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded() and not ctx().threshold_passed }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().threshold_passed }}"
+        do:
+          - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  add_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  itsm_pending:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      pending: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      pending_mins: "{{ ctx().pending_mins }}"
+      notes: "pending the ticket for next {{ ctx().pending_mins }} minutes."
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Pending"
+        do:
+          - remove_pending_ic_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+  
+  get_esc_reason:
+    action: core.noop
+    next:
+      - when: "{{ ctx().consecutive_fails == ctx().max_failures }}"
+        publish:
+          - max_threshold_failed: true
+        do:
+          - finish
+      - when: "{{ ctx().consecutive_fails < ctx().max_failures }}"
+        publish:
+          - max_threshold_failed: false
+        do:
+          - finish
+
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().threshold_passed and not ctx().found_recurrence and not ctx().max_threshold_failed }}"
+        do:
+          - itsm_close          
+      - when: "{{ succeeded() and ctx().threshold_passed and ctx().found_recurrence and not ctx().max_threshold_failed }}"
+        publish: 
+          - rec_notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. The CPU utilization for {{ ctx().ci_address }} is below the threshold({{  ctx().threshold_percent }}%) and current utilization is {{ ctx().cpu_percent_usage }}%"
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and ctx().threshold_passed and ctx().found_recurrence and ctx().max_threshold_failed }}"
+        publish: 
+          - cpu_passed: false
+          - rec_notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. And the CPU utilization for {{ ctx().ci_address }} is above the threshold ({{ ctx().threshold_percent }}%) for {{ ctx().max_failures }} times and is currently {{ ctx().cpu_percent_usage }}%"
+        do:
+          - itsm_escalate_recurrence         
+      - when: "{{ succeeded() and not ctx().threshold_passed and not ctx().found_recurrence and not ctx().max_threshold_failed }}"
+        publish:
+          - error_message: "The CPU utilization for {{ ctx().ci_address }} is above the threshold({{ ctx().threshold_percent }}%) and is currently {{ ctx().cpu_percent_usage }}%"
+          - cpu_passed: false
+        do:
+          - itsm_escalate         
+      - when: "{{ succeeded() and not ctx().threshold_passed and ctx().found_recurrence and ctx().max_threshold_failed }}"
+        publish: 
+          - cpu_passed: false
+          - rec_notes: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. And the CPU utilization for {{ ctx().ci_address }} is above the threshold({{ ctx().threshold_percent }}%) for {{ ctx().max_failures }} times and is currently {{ ctx().cpu_percent_usage }}%"
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and not ctx().threshold_passed and ctx().found_recurrence and not ctx().max_threshold_failed }}"
+        publish: 
+          - cpu_passed: false
+          - error_message: "Automation is escalating this incident as it was unable to resolve it due to recurrence incidents. The CPU utilization for {{ ctx().ci_address }} is above the threshold({{ ctx().threshold_percent }}%) and is currently {{ ctx().cpu_percent_usage }}%"
+        do:
+          - itsm_escalate
+
+
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().rec_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+          - remove_recheck_total
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Automation is resolving the incident. See work log for details."
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+        Automation is escalating this incident as it was unable to resolve it.
+        
+        {{ ctx().error_message }}
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+          - remove_recheck_total
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().cpu_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+         # - update_kv_var
+          - get_end_timestamp
+          - remove_recheck_total
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+
+
+  remove_pending_ic_kv_var:
+    action: ntt_itsm.itsm_processing_pending_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ( ctx().run_error or not ctx().cpu_passed ) }}"
+        do:
+          - fail
+
+
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('get_end_timestamp').end_timestamp }}"
+        do:
+          - insert_db
+
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "unix cpu utilization"
+        Status: "{{ 'Failure' if ( ctx().run_error or not ctx().cpu_passed ) else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if not ctx().run_error and ctx().cpu_passed %}
+          CPU utilization is at {{ ctx().cpu_percent_usage }}% and is under the threshold {{ ctx().threshold_percent}}%
+          {% endif %}
+          {% if not ctx().cpu_passed %}
+          {{ ctx().error_message }}
+          {{ ctx().cpu_info }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {% endif %}
+        AM_Status: "{{ 'Failure' if ( ctx().run_error or not ctx().cpu_passed ) else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow_moodys"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "cpu_check_unix"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Unix"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+
+  remove_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - remove_consecutive_fails
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  remove_consecutive_fails:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "consecutive_fails"
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error remove the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - get_end_timestamp
+          - remove_recheck_total
+          - remove_consecutive_fails
+      - when: "{{ succeeded() and ( ctx().run_error or not ctx().cpu_passed ) }}"
+        do:
+          - fail

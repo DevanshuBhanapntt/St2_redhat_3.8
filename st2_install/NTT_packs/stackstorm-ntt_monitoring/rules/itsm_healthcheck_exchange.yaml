@@ -1,0 +1,23 @@
+---
+  name: "itsm_healthcheck_exchange"
+  pack: "ntt_monitoring"
+  description: "trigger healthcheck exchange workflow at the specified time"
+  enabled: false
+
+  trigger:
+    type: "core.st2.CronTimer"
+    parameters:
+      timezone: "UTC"
+      day_of_week: "*"
+      hour: 10
+      minute: 0
+      second: 0
+
+  action:
+    ref: "ntt_monitoring.healthcheck_MSG_Exchange"
+    parameters:
+      # If your filepath is c:\temp\healthchecklogs\Log , set filepath upto c:\temp\healthchecklogs and the last directory(i.e. Log) -> hardcode in ps script: hc_exchange_report_content.ps1
+      # This ps script is under directory /opt/stackstorm/packs/ntt_monitoring/bolt/modules/ntt_monitoring/tasks
+      # This last directory to be hardcoded in line 12 : $file = Get-ChildItem -path X:\<last dir> | Where-Object { ($_.name -like "$filematchstring") -and ($_.LastWriteTime -gt $date) } | select -last 1
+      filepath: 'c:\temp\healthchecklogs'
+      filematchstring: "*-TOOLSLABMAIL-*.html"

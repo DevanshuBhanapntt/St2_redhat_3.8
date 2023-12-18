@@ -1,0 +1,62 @@
+---
+name: threshold_check
+pack: ntt_monitoring
+description: "Verifies whether the given value is above or below the given threshold then calculate if the previous task should be re-run and return true or false"
+# We moved this to a Python action for performance improvements
+# runner_type: orquesta
+# entry_point: workflows/threshold_check.yaml
+runner_type: "python-script"
+entry_point: threshold_check.py
+enabled: true
+parameters:
+  check_value:
+    type: boolean
+    description: "Whether the result of a worflow needs to be compared to a threshold value (memory utilization, cpu utilization, etc.)"
+    required: true
+    default: true
+  max_failures:
+    type: integer
+    description: "Total number of times to rerun the previous action if consecutive checks fail against the threshold"
+    required: true
+    default: 2
+  rerun_flag:
+    type: boolean
+    description: "Wether or not to re-run the previous action"
+    required: true
+    default: true
+  rerun_limit:
+    type: integer
+    description: "Maximum number of times to rerun the previous action"
+    required: true
+    default: 5
+  rerun_total:
+    type: integer
+    description: "Number of times the previous action has been rerun"
+    required: true
+    default: 0
+  fail_check_counter:
+    type: integer
+    description: "Number that will be incremented if the threshold check fails"
+    required: true
+    default: 0
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each threshold check"
+    required: true
+    default: 0
+  threshold:
+    type: integer
+    description: "Threshold to check the given value against"
+    required: false
+  threshold_type:
+    type: string
+    description: "Whether the given value is expected to be above or below the threshold. If upper, then this workflow will succeed if the given value is below the given threshold"
+    required: true
+    enum:
+      - lower
+      - upper
+    default: upper
+  value:
+    type: number
+    description: "Value to check against the given threshold"
+    required: false

@@ -1,0 +1,12 @@
+---
+name: itsm_change_getentries
+pack: ntt_itsm
+description: "Reading the Change information from ITSM"
+runner_type: "python-script"
+entry_point: itsm_change_getentries.py
+enabled: true
+parameters:
+  change_id:
+    type: string
+    description: "Unique ID for the Change to read the details"
+    required: true   

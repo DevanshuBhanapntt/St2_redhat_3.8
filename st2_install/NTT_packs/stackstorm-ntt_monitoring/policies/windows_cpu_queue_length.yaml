@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: windows_cpu_queue_length.concurrency
+description: Limits the concurrent executions for ntt_monitoring.windows_cpu_queue_length
+enabled: true
+resource_ref: ntt_monitoring.windows_cpu_queue_length
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

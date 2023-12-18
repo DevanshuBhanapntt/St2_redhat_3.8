@@ -1,0 +1,30 @@
+{ 
+  "description": "Fetch the content of exchange report",
+  "implementations": [
+    {"name": "hc_exchange_report_content.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": 
+  {
+
+    "filepath": 
+	{
+      "description": "Path of exchange report",
+      "type": "String"
+    },
+    "filematchstring": 
+	{
+      "description": "string of file to match",
+      "type": "String"
+    },
+    "username": 
+	{
+      "description": "username of the target server",
+      "type": "String"
+    },
+    "password": 
+	{
+      "description": "password of the target server",
+      "type": "String"
+    }    
+  }
+}

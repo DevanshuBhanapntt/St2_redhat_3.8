@@ -1,0 +1,9 @@
+---
+customers:
+  cus:
+    connections:
+      ssh_username: "root"
+      ssh_password: "passwd"
+      winrm_username: "administrator"
+      winrm_password: "password"
+    test_var1: "test1"

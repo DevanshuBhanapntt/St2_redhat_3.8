@@ -1,0 +1,81 @@
+---
+name: tsm_backup
+pack: ntt_monitoring
+description: "TSM Bakup failure automation"
+runner_type: orquesta
+entry_point: workflows/tsm_backup.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group of the incident"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: false
+  ci_address:
+    type: string
+    description: "Device ip from the incident description"
+    required: false
+  incident_state:
+    type: string
+    description: "configuration item name"
+    required: true
+  configuration_item_name:
+    type: string
+    description: "configuration item name"
+    required: false
+  affected_drive:
+    type: string
+    description: "configuration item name"
+    required: false
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false 
+  short_desc:
+    type: string
+    description: "Short description from the incident"
+    required: false 
+  detailed_desc:
+    type: string
+    description: "detailed description from the incident"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "Short description string to check for recurring incidents"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string to check for recurring incidents"
+    required: false
+  dsmc_running_proceed:
+    type: string
+    description: "This should be enabled only for arcosa. This is to proceed to backup completion checked when the dsmc process is already running"
+    required: true
+    default: 'false'
+  service_window_check:
+    type: string
+    description: "arizona window check required or not."
+    required: true
+    default: 'false'
+  dignity_healthserver_list:
+    type: string
+    description: "dignity health server list from datastore"
+    required: true
+    default: "{{ st2kv.system.tsm_dignity_healthserver }}"
+  eighthour_cilist:
+    type: string
+    description: "store ci that takes 8 hour for backup in datastore if any"
+    required: true
+    default: "{{ st2kv.system.eighthour_cilist }}"

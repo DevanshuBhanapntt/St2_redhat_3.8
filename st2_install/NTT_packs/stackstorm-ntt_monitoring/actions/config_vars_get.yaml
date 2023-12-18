@@ -1,0 +1,16 @@
+---
+description: "Retrieve the given variables from the config file for the given customer abbreviation"
+enabled: true
+runner_type: "python-script"
+entry_point: config_vars_get.py
+name: config_vars_get
+pack: ntt_monitoring
+parameters:
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+  workflow_overrides:
+    type: object
+    description: "Any overrides to check for"
+    required: true

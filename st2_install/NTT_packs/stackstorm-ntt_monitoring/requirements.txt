@@ -1,0 +1,4 @@
+paramiko
+pyvmomi
+pymssql<3.0
+sqlalchemy

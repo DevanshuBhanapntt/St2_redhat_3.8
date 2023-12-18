@@ -1,0 +1,53 @@
+---
+name: nw_device_ping
+pack: ntt_monitoring
+description: "Monitors network device is pingable or not"
+runner_type: orquesta
+entry_point: workflows/nw_device_ping.yaml
+enabled: true
+parameters:
+  ci_address:
+    type: string
+    description: "FQDN of the network device to check ping"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: false
+  ping_count:
+    type: integer
+    description: "Number of packets to send when checking ping connectivity"
+    required: false
+  ping_recheck_limit:
+    type: integer
+    description: "Number of times to re-ping the CI device if the first ping fails"
+    required: true
+    default: 2   
+  ping_sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each threshold check"
+    required: true
+    default: 30
+  ping_success_packets_received:
+    type: integer
+    description: "How many packets received successfully while ping"
+    required: true
+    default: 1
+  ping_packets_loss_threshold_per:
+    type: integer
+    description: "How much percentage packets lossed while pinging"
+    required: true
+    default: 40
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false 
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: false

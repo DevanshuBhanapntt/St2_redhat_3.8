@@ -1,0 +1,85 @@
+---
+description: "Executes a Bolt plan on a generic server (linux=ssh, windows=winrm)"
+enabled: true
+runner_type: orquesta
+entry_point: workflows/bolt_plan.yaml
+name: bolt_plan
+pack: ntt_monitoring
+parameters:
+  bolt_timeout:
+    type: integer
+    description: "Bolt wait time out for plans"
+    required: false
+    default: "{{ st2kv.system.bolt.timeout }}"
+  bolt_timeout_offset:
+    type: integer
+    description: "Offset to add to Bolt action timeout to allow Bolt to actually timeout"
+    required: false
+    default: "{{ st2kv.system.bolt.timeout_offset }}"
+  os_type:
+    type: string
+    description: "Operating system type of the server (windows, linux)"
+    required: true
+  plan:
+    type: string
+    description: "Name of the plan to execute"
+    required: true
+  run_as_user:
+    type: string
+    description: "User to run as using privilege escalation"
+    default: "{{ st2kv.system.linux.run_as_user }}"
+  server_fqdn:
+    type: string
+    description: "Fully Qualified Domain Name of the server"
+    required: false
+  params:
+    type: object
+    description: "Dictionary of parameters to pass to Bolt for plan execution."
+    required: false
+    default: {}
+  st2kv_config:
+    type: object
+    description: >
+      'Key/value pairs to lookup in StackStorm from within the Bolt run.
+      Each key should be the name of a Bolt config option to set in the run.
+      https://puppet.com/docs/bolt/0.x/configuring_bolt.html
+      If the variable is nested in a deep section, separate the section
+      names with a '.', example: 'ssh.user'.
+      Each value should be the name of the key in the StackStorm key/value store
+      to use for the lookup when setting the value in bolt
+      (example: system.linux.password).
+      This allows us to store credentials and dynamic informaiton within
+      StackStorm and utilize that information from within Bolt without
+      needing to duplicate the informaiton in config files.
+
+      Example:
+        # During the Bolt run, this will go out to our StackStorm instance
+        # and do a key/value lookup using the key "system.linux.password".
+        # The value value of the lookup will be set as the value of the
+        # 'ssh.password' variable in the Bolt config for this run.
+        st2kv_config:
+          ssh.password: "system.linux.password"'
+    required: false
+    default: {}
+  st2kv_facts:
+    type: object
+    description: >
+      'Same thing as st2kv_config except it sets them as facts on the target
+      for the server.
+
+      Example:
+        st2kv_facts:
+          default_role: "system.puppet.default_role"'
+    required: false
+    default: {}
+  st2kv_vars:
+    type: object
+    description: >
+      'Same thing as st2kv_config except it sets them as vars on the target
+      for the server.
+
+      Example:
+        st2kv_facts:
+          force_rebot: "system.windows.force_reboot"'
+    required: false
+    default: {}

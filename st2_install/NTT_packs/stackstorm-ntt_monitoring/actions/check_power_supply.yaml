@@ -1,0 +1,48 @@
+---
+name: check_power_supply
+pack: "ntt_monitoring"
+description: "To check the network device module status in remote network device"
+runner_type: "python-script"
+entry_point: check_power_supply.py
+enabled: true
+parameters:
+  script_name:
+    type: string
+    description: "c login script path"
+    required: true
+    default: "/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh"
+  script_options:
+    type: string
+    description: "c login script options"
+    required: true
+    default: "-noenable"
+  #create two datastore entries if not available, network.username = network device user and network.password = network device password
+  username:
+    type: string
+    description: "Username to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "Password to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  ci_address:
+    type: string
+    description: "ci_address of the remote server"
+    required: true
+  version_command:
+    type: string
+    description: "command to check version details"
+    required: true
+    default: "show version"
+  show_clock:
+    type: string
+    description: "command to check inventory details"
+    required: true
+    default: "show clock"
+  Power_Supply_cmd:
+    type: string
+    description: "command to check show detail output"
+    required: true
+    default: "show environment all | include power"

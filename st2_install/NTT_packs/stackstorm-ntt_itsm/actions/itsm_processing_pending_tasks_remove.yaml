@@ -1,0 +1,12 @@
+---
+name: itsm_processing_pending_tasks_remove
+pack: ntt_itsm
+description: "Removes the given taks Number from the appropriate kv store variable"
+runner_type: "python-script"
+entry_point: itsm_processing_pending_tasks_remove.py
+enabled: true
+parameters:
+  task_number:
+    type: string
+    description: "ITSM task number ID to remove from the kv store"
+    required: true

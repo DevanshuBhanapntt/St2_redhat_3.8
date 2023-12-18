@@ -1,0 +1,16 @@
+---
+name: itsm_table_getentries
+pack: ntt_itsm
+description: "Reading the snow table information from ITSM"
+runner_type: "python-script"
+entry_point: itsm_table_getentries.py
+enabled: true
+parameters:
+  schema_name:
+    type: string
+    description: "service now table name"
+    required: true   
+  match_condition:
+    type: string
+    description: "match conditon to search in the table"
+    required: true 

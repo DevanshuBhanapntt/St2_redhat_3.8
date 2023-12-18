@@ -1,0 +1,24 @@
+{
+  "description": "Remove all files from given disk's \\TEMP folder if remove_temp_files is passed",
+  "implementations": [
+    {"name": "disk_clean_temp_files.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to clear the directories for",
+      "type": "String[1]"
+    },
+    "remove_temp_files": {
+      "description": "Whether or not to clear the contents of the C:\\Users\\TEMP folder",
+      "type": "Boolean"
+    },
+    "remove_temp_ie_files": {
+      "description": "Whether or not to delete the files from each user's internet temp folder (C:\\Users\\*\\AppData\\Local\\Temp)",
+      "type": "Boolean"
+    }
+  }
+}

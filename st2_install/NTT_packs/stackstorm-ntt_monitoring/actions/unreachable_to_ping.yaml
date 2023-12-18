@@ -1,0 +1,123 @@
+---
+name: unreachable_to_ping
+pack: ntt_monitoring
+description: "Pings a CI device to check connectivity and if successfull retrieves the uptime of the device"
+runner_type: orquesta
+entry_point: workflows/unreachable_to_ping.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: false
+  check_uptime:
+    type: boolean
+    description: "Whether the uptime needs to be checked or not"
+    required: true
+  ci_address:
+    type: string
+    description: "IP address of the CI to ping"
+    required: true
+  close_incident:
+    type: boolean
+    description: "Whether the incident should be closed if the given device is pingable"
+    default: true
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  insert_db:
+    type: boolean
+    description: "Whether or not to insert the results of the workflow into the databse"
+    required: true
+    default: true
+  os_type:
+    type: string
+    description: "OS that is running on the CI device"
+    required: false
+  ping_count:
+    type: integer
+    description: "Number of packets to send when checking ping connectivity"
+    required: false
+  recheck_limit:
+    type: integer
+    description: "Number of times to re-ping the CI device if the first ping fails"
+    required: true
+    default: 2
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: false
+  rec_short_desc:
+    type: string
+    description: "this Short description name from ITSM to pass into the recurrence logic"
+    required: false
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the recurrence logic"
+    required: false
+  sleep_interval:
+    type: integer
+    description: "How long to wait (in seconds) between each threshold check"
+    required: true
+    default: 300
+  configuration_item_name:
+    type: string
+    description: "configuration item name name from ITSM ticket"
+    required: false
+  ssh_password:
+    type: string
+    description: "Password of the username to login to the Linux CI device"
+    required: false
+    secret: true
+  ssh_username:
+    type: string
+    description: "Username of the account to login to the Linux CI device"
+    required: false
+  uptime_threshold:
+    type: integer
+    description: "Threshold amount for the CI uptime. Amounts less than this will require escalation"
+    required: false
+  winrm_password:
+    type: string
+    description: "Password of the username to login to the Windows CI device"
+    required: false
+    secret: true
+  winrm_port:
+    type: integer
+    description: "Port used to connect to Windows CI device"
+    required: false
+  winrm_scheme:
+    type: string
+    description: "Scheme to use in the WinRM URL. If using scheme “http” winrm port must be 5985"
+    required: false
+  winrm_username:
+    type: string
+    description: "Username of the account to login to the Windows CI device"
+    required: false
+  winrm_verify_ssl:
+    type: boolean
+    description: "Whether or not to verify the SSL cert before connecting to Windows CI device"
+    required: false
+  exe_id:
+    type: string
+    description: "Execution ID of external actions.Pass the value if ping flow is called from other workflows."
+    required: false

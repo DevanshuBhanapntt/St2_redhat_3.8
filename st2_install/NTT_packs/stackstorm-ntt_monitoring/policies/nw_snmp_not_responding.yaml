@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: nw_snmp_not_responding.concurrency
+description: Limits the concurrent executions for ntt_monitoring.nw_snmp_not_responding
+enabled: true
+resource_ref: ntt_monitoring.nw_snmp_not_responding
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

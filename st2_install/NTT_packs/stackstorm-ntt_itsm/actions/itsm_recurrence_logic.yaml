@@ -1,0 +1,32 @@
+---
+name: itsm_recurrence_logic
+pack: ntt_itsm
+description: "Checks the ITSM type from the config file and check any recurrence incidents found on the same CI for the past days"
+runner_type: "python-script"
+entry_point: itsm_recurrence_logic.py
+enabled: true
+parameters:
+  inc_id:
+    type: string
+    description: "Unique ID for the incident to update"
+    required: true
+  rec_ds_key_name:
+    type: string
+    description: "Datastore key field name to get the recurrence configurations details"
+    required: true
+  company_name:
+    type: string
+    description: "itsm company name to checks incident counts"
+    required: true 
+  ci_name:
+    type: string
+    description: "Check whether this CI have recurrence incidents"
+    required: true 
+  short_desc:
+    type: string
+    description: "Find the recrrence incident with same short description"
+    required: false
+  long_desc:
+    type: string
+    description: "Find the recrrence incident with same long description"
+    required: false 

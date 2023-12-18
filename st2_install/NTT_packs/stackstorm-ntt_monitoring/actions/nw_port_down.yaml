@@ -1,0 +1,97 @@
+---
+name: nw_port_down
+pack: ntt_monitoring
+description: "Port down check"
+runner_type: orquesta
+entry_point: workflows/nw_port_down.yaml
+enabled: true
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group of the incident"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: false
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: false
+  device_ip:
+    type: string
+    description: "Device ip from the incident description"
+    required: false
+  device_name:
+    type: string
+    description: "configuration item name"
+    required: false
+  workflow_type:
+    type: string
+    description: "Port link down(PortLink) or port operationally down(PortOper)."
+    required: false
+  ifindex:
+    type: string
+    description: "Ifindex"
+    required: false
+  mib:
+    type: string
+    description: "mib interface"
+    required: false
+  snmp_version:
+    type: string
+    description: "value from datastore (v2 or v3)"
+    required: true
+    default: "{{ st2kv.system.snmp_version }}"
+    #comment default value when the value is passed from sensor
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: false 
+  short_desc:
+    type: string
+    description: "Short description from the incident"
+    required: false 
+  detailed_desc:
+    type: string
+    description: "detailed description from the incident"
+    required: false 
+  rec_short_desc:
+    type: string
+    description: "Short description string to check for recurring incidents"
+    required: false 
+  rec_detailed_desc:
+    type: string
+    description: "Detailed description string to check for recurring incidents"
+    required: false
+  #Below 5 parameters are only required for accounts which use entuity    
+  Is_Entuity:
+    type: string
+    description: "IS your account using entuity or not"
+    required: true 
+    default: 'false'
+  interface_ip:
+    type: string
+    description: "entuity interface ip from sensor(datastore)"
+    required: false 
+    default: ""
+  nw_clogin_script_server_IP:
+    type: string
+    description: "entuity server ip from sensor(datastore)"
+    required: false 
+    default: ""
+  nw_clogin_script_server_username:
+    type: string
+    description: "entuity server username from sensor(datastore)"
+    required: true 
+    default: "{{ st2kv.system.entuity_user}}"
+  clogin_script_path:
+    type: string
+    description: "entuity server password from sensor(datastore) Ex: /home/bao_net_mon"
+    required: true 
+    default: "{{ st2kv.system.entuity_clogin_script_path }}"

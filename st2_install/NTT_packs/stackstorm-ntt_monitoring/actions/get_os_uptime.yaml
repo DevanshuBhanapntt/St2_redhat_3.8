@@ -1,0 +1,12 @@
+---
+description: "Find future starting time and end time based on a given expected time and future time offset"
+enabled: true
+runner_type: "python-script"
+name: get_os_uptime
+pack: ntt_monitoring
+entry_point: get_os_uptime.py
+parameters:
+  cmd_input:
+    type: string
+    description: "Input time from which future start date and end date will be found"
+    required: true

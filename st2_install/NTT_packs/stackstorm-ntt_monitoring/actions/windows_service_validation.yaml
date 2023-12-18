@@ -1,0 +1,23 @@
+name: windows_service_validation
+pack: ntt_monitoring
+runner_type: "python-script"
+description: validate the service details vs configurations
+enabled: true
+entry_point: windows_service_validation.py
+parameters:
+  service_name:
+    type: string
+    description: "Service name from ITSM to pass into the script check the status"
+    required: true
+  Win_service_Restricted:
+    description: "List of services restricted from automation"
+    type: array
+    required: false
+  Win_service_StatusCheck_Only:
+    description: "List of services should check only status"
+    type: array
+    required: false 
+  Win_service_Restart:
+    description: "List of services should restart"
+    type: array
+    required: false

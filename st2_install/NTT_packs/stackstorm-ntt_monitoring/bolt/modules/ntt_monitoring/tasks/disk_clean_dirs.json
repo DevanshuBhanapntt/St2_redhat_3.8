@@ -1,0 +1,20 @@
+{
+  "description": "Clean the contents of the given directories",
+  "implementations": [
+    {"name": "disk_clean_dirs.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "directories": {
+      "description": "List of directories to clear the contents of",
+      "type": "Array[String]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to clear the directories for",
+      "type": "String[1]"
+    }
+  }
+}

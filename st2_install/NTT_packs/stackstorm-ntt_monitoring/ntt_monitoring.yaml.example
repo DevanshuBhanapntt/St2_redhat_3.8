@@ -1,0 +1,153 @@
+---
+customers:
+  ntt:
+    connections:
+      bolt_ssh_username_key: "system.linux.username"
+      bolt_ssh_password_key: "system.linux.password"
+      bolt_ssh_tmp_dir_key: "system.linux.tmpdir"
+      bolt_winrm_username_key: "system.winrm.username"
+      bolt_winrm_password_key: "system.winrm.password"
+      bolt_winrm_port_key: "system.winrm.port"
+      bolt_winrm_scheme_key: "system.winrm.scheme"
+      bolt_winrm_ssl_key: "system.winrm.ssl"
+      bolt_winrm_verify_ssl_key: "system.winrm.ssl_verify"
+      ssh_username: "{{ st2kv.system.linux.username }}"
+      ssh_password: "{{ st2kv.system.linux.password | decrypt_kv }}"
+      #ssh_solaris_username: "{{ st2kv.system.solaris.username }}"
+      #ssh_solaris_password: "{{ st2kv.system.solaris.password | decrypt_kv }}"
+      ssh_tmp_dir: "{{ st2kv.system.linux.tmpdir }}"
+      winrm_username: "{{ st2kv.system.winrm.username }}"
+      winrm_password: "{{ st2kv.system.winrm.password | decrypt_kv }}"
+      winrm_port: "{{ st2kv.system.winrm.port }}"
+      winrm_scheme: "{{ st2kv.system.winrm.scheme }}"
+      winrm_verify_ssl: "{{ st2kv.system.winrm.ssl_verify }}"
+    disk_clean_compress_files: "{{ st2kv.system.disk.compress_files }}"
+    disk_clean_compress_file_age_days: "{{ st2kv.system.disk.compress_file_age }}"
+    disk_clean_compress_file_exts:
+      - ':*.PDF'
+    disk_clean_compress_file_min_size_mb: "{{ st2kv.system.disk.compress_min_size }}"
+  default:
+    connections:
+      bolt_ssh_username_key: "system.linux.username"
+      bolt_ssh_password_key: "system.linux.password"
+      bolt_ssh_tmp_dir_key: "system.linux.tmpdir"
+      bolt_winrm_username_key: "system.winrm.username"
+      bolt_winrm_password_key: "system.winrm.password"
+      bolt_winrm_port_key: "system.winrm.port"
+      bolt_winrm_scheme_key: "system.winrm.scheme"
+      bolt_winrm_ssl_key: "system.winrm.ssl"
+      bolt_winrm_verify_ssl_key: "system.winrm.ssl_verify"
+      ssh_username: "{{ st2kv.system.linux.username }}"
+      ssh_password: "{{ st2kv.system.linux.password | decrypt_kv }}"
+      ssh_tmp_dir: "{{ st2kv.system.linux.tmpdir }}"
+      #ssh_solaris_username: "{{ st2kv.system.solaris.username }}"
+      #ssh_solaris_password: "{{ st2kv.system.solaris.password | decrypt_kv }}"      
+      winrm_username: "{{ st2kv.system.winrm.username }}"
+      winrm_password: "{{ st2kv.system.winrm.password | decrypt_kv }}"
+      winrm_port: "{{ st2kv.system.winrm.port }}"
+      winrm_scheme: "{{ st2kv.system.winrm.scheme }}"
+      winrm_verify_ssl: "{{ st2kv.system.winrm.ssl_verify }}"
+    cpu_top_process_limit: "{{ st2kv.system.cpu.top_process_limit }}"
+    db_drivername: "{{ st2kv.system.database.drivername }}"
+    db_host: "{{ st2kv.system.database.host }}"
+    db_metric_detail_procedure: "{{ st2kv.system.database.metric_detail_procedure }}"
+    db_metric_procedure: "{{ st2kv.system.database.metric_procedure }}"
+    db_name: "{{ st2kv.system.database.database_name }}"
+    db_password: "{{ st2kv.system.database.password | decrypt_kv }}"
+    db_process_procedure: "{{ st2kv.system.database.process_procedure }}"
+    db_username: "{{ st2kv.system.database.username }}"
+    disk_bolt_timeout: "{{ st2kv.system.disk.bolt_timeout }}"
+    disk_clean_cleanmgr_tasks: "{{ st2kv.system.disk.cleanmgr_tasks }}"
+    disk_clean_compress_files: "{{ st2kv.system.disk.compress_files }}"
+    disk_clean_compress_file_age_days: "{{ st2kv.system.disk.compress_file_age }}"
+    disk_clean_compress_file_exts:
+      - ':*.sampleExtension'      
+    disk_clean_compress_file_min_size_mb: "{{ st2kv.system.disk.compress_min_size }}"
+    disk_clean_directories:
+      - '\tmp\'
+      - '\i386\'
+      - '\windows\propatches\'
+      - '\Windows\Downloaded Program Files\'
+    disk_clean_file_exts:
+      - {":*.dmp": "30"}
+      - {":*.tmp": "30"}
+      - {":*.wlg": "30"}
+      - {":*.chk": "30"}
+      - {":*.old": "30"}
+      - {":Documents and Settings:All Users:Application Data:Symantec:Norton AntiVirus Corporate Edition:7.5:*.wdb": "30"}
+      - {":Documents and Settings:All Users:Application Data:Symantec:Norton AntiVirus Corporate Edition:7.5:*.vdb": "30"}
+    disk_clean_file_names:
+      - '\sample_file_name.txt'
+    disk_clean_profile_age_days: "{{ st2kv.system.disk.clean_profile_age }}"
+    disk_clean_remove_profile: "{{ st2kv.system.disk.remove_profile }}"
+    disk_clean_remove_temp_files: "{{ st2kv.system.disk.remove_tmp_files }}"
+    disk_clean_remove_temp_ie_files: "{{ st2kv.system.disk.remove_tmp_ie_files }}"
+    disk_clean_temp_folders:
+      - '\TEMP'
+      - '\Users\TEMP'
+    dns_domain: "{{ st2kv.system.winrm.dns_domain }}"
+    max_failures: "{{ st2kv.system.max_failures }}"
+    memory_status: "{{ st2kv.system.memory.status }}"
+    ping_count: "{{ st2kv.system.ping_count }}"
+    recheck_limit: "{{ st2kv.system.recheck_limit }}"
+    sleep_interval: "{{ st2kv.system.sleep_interval }}"
+    ping_interval: "{{ st2kv.system.ping_interval }}"
+    threshold_cpu_high: "{{ st2kv.system.threshold.cpu_high }}"
+    Win_cpu_pending_mins: "{{ st2kv.system.Win_cpu_pending_mins }}"
+    Win_cpu_max_failures: "{{ st2kv.system.Win_cpu_max_failures }}"
+    Win_cpu_recheck_limit: "{{ st2kv.system.Win_cpu_recheck_limit }}"
+    unix_cpu_pending_mins: "{{ st2kv.system.unix_cpu_pending_mins }}"
+    unix_cpu_max_failures: "{{ st2kv.system.unix_cpu_max_failures }}"
+    unix_cpu_recheck_limit: "{{ st2kv.system.unix_cpu_recheck_limit }}"
+    unix_memory_pending_mins: "{{ st2kv.system.unix_memory_pending_mins }}"
+    unix_memory_max_failures: "{{ st2kv.system.unix_memory_max_failures }}"
+    unix_memory_recheck_limit: "{{ st2kv.system.unix_memory_recheck_limit }}"
+    threshold_disk_mb: "{{ st2kv.system.threshold.disk_mb }}"
+    threshold_disk_percent: "{{ st2kv.system.threshold.disk_high }}"
+    threshold_disk_type: "{{ st2kv.system.disk.threshold_type }}"
+    threshold_memory_high: "{{ st2kv.system.threshold.memory_high }}"
+    threshold_port_high: "{{ st2kv.system.threshold.port_high }}"
+    threshold_uptime_low: "{{ st2kv.system.threshold.uptime_low }}"
+    threshold_Win_memory_high: "{{ st2kv.system.Win_memory_high }}"
+    Win_Memory_max_failures: "{{ st2kv.system.Win_Memory_max_failures }}"
+    Win_Memory_recheck_limit: "{{ st2kv.system.Win_Memory_recheck_limit }}"
+    Win_Memory_pending_mins: "{{ st2kv.system.Win_Memory_pending_mins }}"
+    Win_service_Restricted:
+      - 'samplesericename1'
+      - 'samplesericename2' 
+    Win_service_StatusCheck_Only:
+      - 'samplesericename1'
+      - 'samplesericename2' 
+    Win_service_Restart:
+      - {"samplesericename1": 10}
+      - {"samplesericename2": 10}      
+    linux_disk_yum_cache_clear: "true"
+    linux_disk_clean_files : "{'*filename1*' : 10,'*filename2*' : 10}"
+    threshold_Win_cpu_queue_length: "{{ st2kv.system.Win_cpu_queue_length }}"
+    Win_cpu_queue_max_failures: "{{ st2kv.system.Win_cpu_queue_max_failures }}"
+    Win_cpu_queue_recheck_limit: "{{ st2kv.system.Win_cpu_queue_recheck_limit }}"
+    Win_cpu_queue_pending_mins: "{{ st2kv.system.Win_cpu_queue_pending_mins }}"
+    #device_username : "{{ st2kv.system.network.username }}"
+    #device_password : "{{ st2kv.system.network.password | decrypt_kv }}"
+    snmp_version: 'v3'
+    snmp_securityName: 'nttusrsnmpv3'
+    snmp_authProtocol: 'SHA'
+    snmp_authKey: '3mp3n0NTT'
+    snmp_privKey: '3mp3n0NTT'
+    snmp_PrivProtocol: 'AES128,AES256,DES'
+    snmp_community: 'sample'
+    nw_unreachable_to_ping_ping_count : '10'
+    nw_unreachable_to_ping_ping_recheck_limit: '3'
+    nw_unreachable_to_ping_ping_sleep_interval: '300'
+    nw_unreachable_to_ping_ping_success_packets_received: '8'
+    nw_unreachable_to_ping_ping_packets_loss_threshold_per: '40'  
+    nw_clogin_script_server_IP : '1.1.1.1'
+    nw_clogin_script_server_username : "system.network.clogin_script_server_username"
+    nw_clogin_script_server_password : "system.network.clogin_script_server_password"
+    nw_clogin_script_path : '/opt/stackstorm/packs/ntt_monitoring/actions/nw_clogin.sh'
+    nw_nms_IP : ' '
+    nw_snmp_not_responding_ping_count : '10'
+    nw_snmp_not_responding_ping_recheck_limit: '3'
+    nw_snmp_not_responding_ping_sleep_interval: '6'
+    nw_snmp_not_responding_ping_success_packets_received: '8'
+    nw_snmp_not_responding_ping_packets_loss_threshold_per: '40'

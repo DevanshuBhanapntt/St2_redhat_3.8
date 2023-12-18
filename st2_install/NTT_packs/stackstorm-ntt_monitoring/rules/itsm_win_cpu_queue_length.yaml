@@ -1,0 +1,27 @@
+---
+  name: "itsm_win_cpu_queue_length"
+  pack: "ntt_monitoring"
+  description: "If an incident is created for high cpu queue length then check the current queue length and update the incident with results"
+  enabled: true
+
+  trigger:
+    type: "ntt_itsm.win_cpu_queue_length"
+    parameters: {}
+
+  action:
+    ref: "ntt_monitoring.windows_cpu_queue_length"
+    parameters:
+      assignment_group: "{{ trigger.assignment_group }}"
+      ci_address: "{{ trigger.ci_address }}"       
+      customer_name: "{{ trigger.customer_name }}"
+      detailed_desc: "{{ trigger.detailed_desc }}"
+      inc_number: "{{ trigger.inc_number }}"
+      inc_sys_id: "{{ trigger.inc_sys_id }}"
+      os_type: "{{ trigger.os_type }}"
+      cpu_type: "{{ trigger.cpu_type }}"
+      short_desc: "{{ trigger.short_desc }}"
+      threshold_queue: "{{ trigger.threshold_queue | int }}"      
+      incident_state: "{{ trigger.incident_state }}"
+      rec_short_desc: "{{ trigger.rec_short_desc }}"
+      rec_detailed_desc: "{{ trigger.rec_detailed_desc }}"
+      configuration_item_name: "{{ trigger.configuration_item_name }}"

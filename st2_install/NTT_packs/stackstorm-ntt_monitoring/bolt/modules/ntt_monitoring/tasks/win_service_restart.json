@@ -1,0 +1,20 @@
+{
+  "description": "Verify that the service status and restart service for the given VM ",
+  "implementations": [
+    {"name": "win_service_restart.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "dns_domain": {
+      "description": "DNS domain to append to the hostname",
+      "type": "String"
+    },
+    "servicename": {
+      "description": "validate the service status on the server",
+      "type": "String"
+    },
+    "sleepsec": {
+      "description": "sleep seconds for service restart",
+      "type": "Integer"
+    }
+  }
+}

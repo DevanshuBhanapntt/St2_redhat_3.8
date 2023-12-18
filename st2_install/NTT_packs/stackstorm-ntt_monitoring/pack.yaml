@@ -1,0 +1,14 @@
+---
+ref: ntt_monitoring
+name: ntt_monitoring
+description: Monitoring Pack for NTT Customer actions
+dependencies:
+    - https://github.com/NTT-DATAStackStormRepo/stackstorm-bolt.git
+    - https://github.com/NTT-DATAStackStormRepo/stackstorm-sql.git
+keywords:
+    - monitoring
+version: 0.1.0
+author: Encore Technologies
+email: code@encore.tech
+python_versions:
+  - "3"

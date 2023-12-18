@@ -1,0 +1,17 @@
+---
+description: "Checks the kv store for the given taks number and removes it if it is found there"
+enabled: true
+runner_type: "python-script"
+entry_point: servicenow_processing_tasks_remove.py
+name: servicenow_processing_tasks_remove
+pack: ntt_itsm
+parameters:
+  task_number:
+    type: string
+    description: "ServiceNow taks number to add to the kv store"
+    required: true
+  inc_st2_key:
+    type: string
+    description: "Name of the kv store key to save the incident number to"
+    required: true
+    default: "servicenow.tasks_processing"

@@ -1,0 +1,19 @@
+---
+name: itsm_processing_tasks_check
+pack: ntt_itsm
+description: "Get a list of processing ITSM taks from the kv store and check if they are still open"
+enabled: true
+
+trigger:
+  type: "core.st2.CronTimer"
+  # http://apscheduler.readthedocs.io/en/3.0/modules/triggers/cron.html#api
+  parameters:
+      timezone: "UTC"
+      day_of_week: "*"
+      # 12pm noon EST
+      hour: 23
+      minute: 0
+      second: 0
+
+action:
+  ref: "ntt_itsm.itsm_processing_tasks_check"

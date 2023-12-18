@@ -1,0 +1,856 @@
+---
+version: 1.0
+
+description: "This workflow is to execute tsm backup"
+#Platform: Network
+#Datasore Keys: tsm_backup_rec_days
+#Description : This workflow is for internal accounts which uses jump server.
+#Workflow Steps:
+#  1. Get the system drive of remote machine
+#  2. Perform TSM healthchecks in remote machine
+#  3. Get the backup processing file from the last backup log
+#  4. Create a tsm backup file to be executed in remote machine
+#  5. Initiate backup by execution the batch file in remote
+#  6. Check the progress of the backup
+#  7. Wait till backup completion(iterations will be calculated with the last backup processing time)
+#  8. close or escalate the incident based in backup completion.
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - inc_number
+  - inc_sys_id
+  - short_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - configuration_item_name
+  - windows_jump_ip
+  - incident_state
+  - affected_drive
+
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - ping_result: ""
+  - recheck_total: 0
+  - run_error: false
+  - run_error_ping: false
+  - run_error_cmd_ping: false
+  - run_error_uptime: false
+  - start_timestamp: ""
+  - bolt_timeout: 1000
+  - backup_processing_time: 0
+  - batch_file_name: ""
+  - result_file_name: ""
+  - pending_mins: 45
+  - notes: ""
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - no_of_iterations: 2
+  - process_id: ""
+  - is_last_iteration: "false"
+  - batch_file_key: ""
+  - am_status: "Failure"
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides: {}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password: "{{ result().result.connections.ssh_password if 'connections' in result().result and 'ssh_password' in result().result.connections else '' }}"
+          - ssh_username: "{{ result().result.connections.ssh_username if 'connections' in result().result and 'ssh_username' in result().result.connections else '' }}"
+          - winrm_password: "{{ result().result.connections.winrm_password if 'connections' in result().result and 'winrm_password' in result().result.connections else '' }}"
+          - winrm_port: "{{ result().result.connections.winrm_port if 'connections' in result().result and 'winrm_port' in result().result.connections else '' }}"
+          - winrm_scheme: "{{ result().result.connections.winrm_scheme if 'connections' in result().result and 'winrm_scheme' in result().result.connections else '' }}"
+          - winrm_username: "{{ result().result.connections.winrm_username if 'connections' in result().result and 'winrm_username' in result().result.connections else '' }}"
+          - winrm_verify_ssl: "{{ result().result.connections.winrm_verify_ssl if 'connections' in result().result and 'winrm_verify_ssl' in result().result.connections else '' }}"
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - ssh_tmp_dir_key: "{{ result().result.connections.bolt_ssh_tmp_dir_key if 'connections' in result().result and 'bolt_ssh_tmp_dir_key' in result().result.connections else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - itsm_begin
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - fail
+
+  itsm_begin:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress."
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - fail
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "tsm_backup_rec_days"
+      ci_name: "{{ ctx().ci_address }}"
+      company_name: "{{ ctx().customer_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_escalate
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ ctx().incident_state == '2' }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ ctx().incident_state == '-5' }}"
+        do:
+          - get_batchfile_detail
+
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - tsm_healthcheck
+      - when: "{{ failed() }}"
+        do:
+          - noop
+
+  rec_itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation escalating the ticket due to recurring incidents,
+             {{ ctx().found_recurrence_value }}
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: |
+                    Automation escalating the ticket due to recurring incidents,
+                    {{ ctx().found_recurrence_value }}
+        do:
+          - itsm_cleanup          
+
+  get_batchfile_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_batchfile"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded() }}"  
+        publish:
+          - batch_file_key: "{{ result().result }}" 
+        do:
+          - get_iteration_detail          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error fetching value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  get_iteration_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_iteration"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded() }}"  
+        publish:
+          - no_of_iterations: "{{ result().result }}" 
+        do:
+          - get_recheck_total          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error fetching value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  get_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded()}}" 
+        publish:
+          - recheck_total: "{{ result().result }}"      
+        do:
+          - get_processid_detail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error fetching value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  get_processid_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_processid"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "get"
+    next:
+      - when: "{{ succeeded() }}"  
+        publish:
+          - process_id: "{{ result().result }}" 
+        do:
+          - tsm_healthcheck          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error fetching value from datastore {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+          
+  tsm_healthcheck:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().windows_jump_ip }}"
+      os_type: "windows"
+      bolt_timeout: "{{ ctx().bolt_timeout}}"
+      plan: "ntt_monitoring::tsm_backup_healthcheck"
+      params:
+        ip_address: "{{ ctx().ci_address }}"
+        ci_name: "{{ ctx().configuration_item_name }}"
+        affected_drive: "{{ ctx().affected_drive }}"
+        username: "{{ ctx().winrm_username }}"
+        password: "{{ ctx().winrm_password }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - system_drive_letter: "{{ result().output.run.result.system_drive_letter }}"
+          - tsm_heathcheck_out: "{{ result().output.run.result.output }}"
+          - notes: |
+              Please see detailed info below:
+              
+              {{ ctx().tsm_heathcheck_out }}
+        do:
+          - itsm_update_results
+          - check_pending
+      - when: "{{ failed() }}"
+        publish:
+          - system_drive_letter: ""
+          - tsm_heathcheck_out: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - notes: |
+              Automation not able to find the system drive. Please see detailed info below:
+              
+              {{ ctx().tsm_heathcheck_out }}
+        do:
+          - itsm_escalate
+          
+  check_pending:
+    action: core.noop
+    next:
+      - when: "{{ ctx().incident_state == '2' }}"
+        do:
+          - tsm_backup_getprocesstime
+      - when: "{{ ctx().incident_state == '-5' }}"
+        do:
+          - tsm_backup_checkcompletion
+          
+  tsm_backup_getprocesstime:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().windows_jump_ip }}"
+      os_type: "windows"
+      bolt_timeout: "{{ ctx().bolt_timeout}}"
+      plan: "ntt_monitoring::tsm_backup_getprocesstime"
+      params:
+        ip_address: "{{ ctx().ci_address }}"
+        ci_name: "{{ ctx().configuration_item_name }}"
+        affected_drive: "{{ ctx().system_drive_letter }}"
+        username: "{{ ctx().winrm_username }}"
+        password: "{{ ctx().winrm_password }}"
+        is_eighthour_ci: "false"
+        service_window_check: "false"
+        dignity_healthservers: ""
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - tsm_info: "{{ result().output.run.result.output }}"
+          - backup_processing_time: "{{ result().output.run.result.backup_processing_time }}"          
+          - notes: |              
+              {{ ctx().tsm_info }}
+        do:
+          - check_iterations
+          - itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - tsm_info: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - notes: |              
+              {{ ctx().tsm_info }}
+        do:
+          - itsm_escalate
+
+  check_iterations:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().incident_state == '2' }}"
+        publish:
+          - no_of_iterations: 6
+        do:
+          - check_valid_iteration
+      - when: "{{ succeeded() and ctx().incident_state == '-5' }}"
+        do:
+          - check_valid_iteration
+          
+  check_valid_iteration:
+    action: core.noop
+    next:
+      - when: "{{ ctx().no_of_iterations < 1 }}"
+        publish:
+          - no_of_iterations: 1
+        do:
+          - add_iteration_detail
+      - when: "{{ ctx().no_of_iterations >= 1 }}"
+        do:
+          - add_iteration_detail
+
+  add_iteration_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_iteration"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: "{{ ctx().no_of_iterations }}"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - tsm_initiate_backup          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding value to datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  tsm_initiate_backup:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().windows_jump_ip }}"
+      os_type: "windows"
+      bolt_timeout: "{{ ctx().bolt_timeout}}"
+      plan: "ntt_monitoring::tsm_initiate_backup"
+      params:
+        ip_address: "{{ ctx().ci_address }}"
+        ci_name: "{{ ctx().configuration_item_name }}"
+        system_drive_letter: "{{ ctx().system_drive_letter }}"
+        username: "{{ ctx().winrm_username }}"
+        password: "{{ ctx().winrm_password }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - tsm_backup_info: "{{ result().output.run.result.output }}"
+          - process_id: "{{ result().output.run.result.process_id }}"
+          - batch_file_name: "{{ result().output.run.result.batch_file_name }}"
+          - batch_file_key_tmp: "{{ ctx().batch_file_name.split('-')[1] }}"
+          - batch_file_key: "{{ ctx().batch_file_key_tmp.split('.')[0] }}"
+          - result_file_name: "result-{{ ctx().batch_file_key }}.bat"
+          - notes: |              
+              {{ ctx().tsm_backup_info }}
+        do:
+          - itsm_update_results
+          - add_processid_detail
+      - when: "{{ failed() }}"
+        publish:
+          - tsm_backup_info: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - notes: |              
+              {{ ctx().tsm_backup_info }}
+        do:
+          - itsm_escalate
+
+  add_processid_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_processid"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: "{{ ctx().process_id }}"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - is_last_iteration          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding value to datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  is_last_iteration:
+    action: core.noop
+    next:
+      - when: "{{ ctx().recheck_total == ctx().no_of_iterations }}"
+        publish:
+          - is_last_iteration: "true"
+        do:
+          - tsm_backup_checkcompletion
+      - when: "{{ ctx().recheck_total < ctx().no_of_iterations }}"
+        publish:
+          - is_last_iteration: "false"
+        do:
+          - tsm_backup_checkcompletion        
+
+  tsm_backup_checkcompletion:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().windows_jump_ip }}"
+      os_type: "windows"
+      bolt_timeout: "{{ ctx().bolt_timeout}}"
+      plan: "ntt_monitoring::tsm_backup_checkcompletion"
+      params:
+        ip_address: "{{ ctx().ci_address }}"
+        ci_name: "{{ ctx().configuration_item_name }}"
+        system_drive_letter: "{{ ctx().affected_drive }}"
+        username: "{{ ctx().winrm_username }}"
+        password: "{{ ctx().winrm_password }}"
+        file_name_string: "{{ ctx().batch_file_key }}"
+        process_id: "{{ ctx().process_id }}"
+        last_iteration: "{{ ctx().is_last_iteration }}"
+        incident_state: "{{ ctx().incident_state }}"
+      st2kv_config:
+        ssh.password: "{{ ctx().ssh_password_key }}"
+        ssh.user: "{{ ctx().ssh_username_key }}"
+        ssh.tmpdir: "{{ ctx().ssh_tmp_dir_key }}"
+        winrm.password: "{{ ctx().winrm_password_key }}"
+        winrm.user: "{{ ctx().winrm_username_key }}"
+        winrm.port: "{{ ctx().winrm_port_key }}"
+        winrm.ssl: "{{ ctx().winrm_ssl_key }}"
+        winrm.ssl-verify: "{{ ctx().winrm_verify_ssl_key }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - tsm_backup_competion_info: "{{ result().output.run.result.output }}"
+          - backup_status: "{{ result().output.run.result.backup_status }}"
+          - notes: |              
+              {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_update_results
+          - check_completion
+      - when: "{{ failed() }}"
+        publish:
+          - tsm_backup_competion_info: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - notes: |              
+              {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_escalate
+
+  check_completion:
+    action: core.noop
+    next:
+      - when: "{{ ctx().backup_status == 'success' }}"
+        publish:
+          - notes: |
+                    Backup completed successfully.
+                    
+                    {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_close
+          - remove_batchfile_detail
+          - remove_recheck_total
+          - remove_iteration_detail
+          - remove_processid_detail
+      - when: "{{ ctx().backup_status == 'failure' }}"
+        publish:
+          - notes: |
+                    Automation found the backup failed. Escalating the ticket.
+                    
+                    {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_escalate
+          - remove_batchfile_detail
+          - remove_recheck_total
+          - remove_iteration_detail
+          - remove_processid_detail
+      - when: "{{ 'dsmc failure' in ctx().backup_status }}"
+        publish:
+          - notes: |
+                    Automation found the backup failed. Escalating the ticket.
+                    
+                    {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_escalate
+          - remove_batchfile_detail
+          - remove_recheck_total
+          - remove_iteration_detail
+          - remove_processid_detail
+      - when: "{{ 'suspend' in ctx().backup_status and ctx().incident_state == '2' }}"
+        do:
+          - add_batchfile_detail
+          - add_recheck_total
+          - get_pending
+      - when: "{{ 'suspend' in ctx().backup_status and ctx().incident_state == '-5' and ctx().recheck_total < ctx().no_of_iterations }}"
+        do:
+          - add_recheck_total
+          - get_pending
+      - when: "{{ 'suspend' in ctx().backup_status and ctx().incident_state == '-5' and ctx().recheck_total >= ctx().no_of_iterations }}"
+        publish:
+          - notes: |
+                    Automation has checked the backup status for more than 5 hours. It hasn't yet finished. Hence Escalating the Incident.
+                    
+                    {{ ctx().tsm_backup_competion_info }}
+        do:
+          - itsm_escalate
+          
+          
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - itsm_cleanup
+
+
+  add_batchfile_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_batchfile"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: "{{ ctx().batch_file_key }}"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - noop        
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+          
+  add_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "add"
+      update_key_value: 1
+    next:
+      - when: "{{ succeeded()}}"       
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  get_pending:
+    action: core.noop
+    next:
+      - when: "{{ ctx().backup_processing_time < 50 and ctx().incident_state == '2' }}"
+        publish:
+          - pending_mins: "{{ ctx().backup_processing_time }}"
+        do:
+          - itsm_pending
+      - when: "{{ ctx().incident_state == '-5' }}"
+        publish:
+          - pending_mins: 50
+        do:
+          - itsm_pending
+  
+  itsm_pending:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      pending: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      pending_mins: "{{ ctx().pending_mins }}"
+      notes: "The backup has not finished running, will check the status again in 45 minutes."     
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Pending"
+        do:
+          - remove_pending_ic_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  remove_pending_ic_kv_var:
+    action: ntt_itsm.itsm_processing_pending_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail 
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is resolving the incident. See work log for details.
+             
+             {{ ctx().notes }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+          - end_timestamp: "{{ task('itsm_close').start_timestamp }}"
+        do:
+          - update_kv_var
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating the incident. See work log for details.
+             
+             {{ ctx().notes }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').start_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+
+  remove_batchfile_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_batchfile"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - noop         
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+          
+  remove_recheck_total:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "recheck_total"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded()}}"       
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error getting the consecutive_fails value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  remove_iteration_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_iteration"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - noop          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+          
+  remove_processid_detail:
+    action: ntt_monitoring.update_kv_dict
+    input:
+      st2_key_name: "tsm_backup_processid"       
+      Find_key_field: "{{ ctx().inc_number }}"
+      update_key_value_oper: "remove"
+    next:
+      - when: "{{ succeeded() }}"  
+        do:
+          - noop          
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error adding the recheck_total value from datastore {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').start_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - fail
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "tsm_backup"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: "{{ ctx().am_status }}"
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "helix"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "tsm_backup"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "windows"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ succeeded() }}"
+        do:
+          - fail

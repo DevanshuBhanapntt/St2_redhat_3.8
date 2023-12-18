@@ -1,0 +1,550 @@
+---
+version: 1.0
+description: "Checks for the windows service status and restarts it"
+#platform: Windows
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_abbr
+  - customer_name
+  - detailed_desc
+  - dns_domain
+  - inc_number
+  - inc_sys_id
+  - incident_state
+  - service_name
+  - short_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - configuration_item_name
+  - Win_service_Restricted
+  - Win_service_StatusCheck_Only
+  - Win_service_Restart
+  - winrm_password_key
+  - winrm_port_key
+  - winrm_username_key
+  - winrm_ssl_key
+  - winrm_verify_ssl_key
+
+vars:
+
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - start_timestamp: ""
+  - uptime_value: null
+  - am_status: "Success"
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - service_info: ""
+  - service_Restart_Sleep_Second : 0
+  - service_validation: false
+  - service_validation_result: ""
+  - service_validation_type: "nothing"
+  - server_service_status: ""
+  - auto_service_status_info: ""
+
+output:
+  - error_message: "{{ ctx().error_message + ctx().error_output }}"
+  - found_recurrence: "{{ ctx().found_recurrence }}"
+  - found_recurrence_value: "{{ ctx().found_recurrence_value }}"
+  - found_recurrence_inc_cnt: "{{ ctx().found_recurrence_inc_cnt }}"
+  - Win_service_Restricted: "{{ ctx().Win_service_Restricted }}"
+  - Win_service_StatusCheck_Only: "{{ ctx().Win_service_StatusCheck_Only }}"
+  - Win_service_Restart: "{{ ctx().Win_service_Restart }}"
+  - server_service_status: "{{ ctx().server_service_status }}"
+tasks:
+   config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        bolt_winrm_password_key: "{{ ctx().winrm_password_key }}"
+        bolt_winrm_port_key: "{{ ctx().winrm_port_key }}"
+        bolt_winrm_username_key: "{{ ctx().winrm_username_key }}"
+        bolt_winrm_ssl_key: "{{ ctx().winrm_ssl_key }}"
+        bolt_winrm_verify_ssl_key: "{{ ctx().winrm_verify_ssl_key }}"
+        Win_service_Restricted: "{{ ctx().Win_service_Restricted }}"
+        Win_service_StatusCheck_Only: "{{ ctx().Win_service_StatusCheck_Only }}"
+        Win_service_Restart: "{{ ctx().Win_service_Restart }}"
+
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password_key: "{{ result().result.connections.bolt_ssh_password_key if 'connections' in result().result and 'bolt_ssh_password_key' in result().result.connections else '' }}"
+          - ssh_username_key: "{{ result().result.connections.bolt_ssh_username_key if 'connections' in result().result and 'bolt_ssh_username_key' in result().result.connections else '' }}"
+          - bolt_timeout: "{{ result().result.disk_bolt_timeout if 'disk_bolt_timeout' in result().result else '' }}"
+          - Win_service_Restricted: "{{ result().result.Win_service_Restricted if 'Win_service_Restricted' in result().result else '' }}"
+          - Win_service_StatusCheck_Only: "{{ result().result.Win_service_StatusCheck_Only if 'Win_service_StatusCheck_Only' in result().result else '' }}"
+          - Win_service_Restart: "{{ result().result.Win_service_Restart if 'Win_service_Restart' in result().result else '' }}"
+          - winrm_password_key: "{{ result().result.connections.bolt_winrm_password_key if 'connections' in result().result and 'bolt_winrm_password_key' in result().result.connections else '' }}"
+          - winrm_port_key: "{{ result().result.connections.bolt_winrm_port_key if 'connections' in result().result and 'bolt_winrm_port_key' in result().result.connections else '' }}"
+          - winrm_username_key: "{{ result().result.connections.bolt_winrm_username_key if 'connections' in result().result and 'bolt_winrm_username_key' in result().result.connections else '' }}"
+          - winrm_ssl_key: "{{ result().result.connections.bolt_winrm_ssl_key if 'connections' in result().result and 'bolt_winrm_ssl_key' in result().result.connections else '' }}"
+          - winrm_verify_ssl_key: "{{ result().result.connections.bolt_winrm_verify_ssl_key if 'connections' in result().result and 'bolt_winrm_verify_ssl_key' in result().result.connections else '' }}"
+
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error: true
+        do:
+          - noop
+
+   ping_test:
+    action: ntt_monitoring.unreachable_to_ping
+    input:
+      check_uptime: false
+      ci_address: "{{ ctx().ci_address }}"
+      close_incident: false
+      inc_number: "{{ ctx().inc_number }}"
+      inc_sys_id: "{{ ctx().inc_sys_id }}"
+      insert_db: false
+      exe_id: <% ctx(st2).action_execution_id %>
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.error_message }}"
+          - run_error: true
+          - run_error_ping: true
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - get_end_timestamp
+
+   check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "Win_ServiceCheck_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+   rec_itsm_update_check:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ failed() }}"
+        do:
+          - find_service_automationwork
+
+   rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - find_service_automationwork
+      - when: "{{ failed() }}"
+        do:
+          - noop
+
+   find_service_automationwork:
+    action: ntt_monitoring.windows_service_validation
+    input:
+      service_name: "{{ ctx().service_name }}"
+    next:
+      - when: "{{ succeeded() "
+        publish:
+          - service_Restart_Sleep_Second: "{{ result().result.service_Restart_Sleep_Second | int }}"
+          - service_validation: "{{ result().result.service_validation }}"
+          - service_validation_result: "{{ result().result.service_validation_result }}"
+          - service_validation_type: "{{ result().result.service_validation_type }}"
+        do:
+          - service_validation_result_itsm_update_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+
+   service_validation_result_itsm_update_check:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().service_validation_result }}"
+    next:
+      - when: "{{ succeeded() and  (ctx().service_validation_type == 'nothing') }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and  (ctx().service_validation_type == 'restricted') }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and  (ctx().service_validation_type == 'status_check') }}"
+        do:
+          - service_status_check
+      - when: "{{ succeeded() and  (ctx().service_validation_type == 'restart') }}"
+        do:
+          - service_restart_check
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+
+   service_status_check:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "windows"
+      plan: "ntt_monitoring::win_service_status_check"
+      params:
+        dns_domain: "{{ ctx().dns_domain }}"
+        service_name: "{{ ctx().service_name }}"
+      st2kv_config:
+        #ssh.password: "{{ ctx().ssh_password_key }}"
+        #ssh.user: "{{ ctx().ssh_username_key }}"
+        winrm.password: "system.winrm.password"
+        winrm.user: "system.winrm.username"
+        winrm.port: "system.winrm.port"
+        winrm.ssl: "system.winrm.ssl"
+        winrm.ssl-verify: "system.winrm.ssl_verify"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - service_info: "{{ result().output.run.result.output }}"
+          - server_service_status: "{{ result().output.run.result.server_service_status }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - itsm_update_results
+      - when: "{{ failed()}}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run.result.details.result_set[0].value._error.msg }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   service_restart_check:
+    action: ntt_monitoring.bolt_plan
+    input:
+      server_fqdn: "{{ ctx().ci_address }}"
+      os_type: "windows"
+      plan: "ntt_monitoring::win_service_restart"
+      params:
+        dns_domain: "{{ ctx().dns_domain }}"
+        servicename: "{{ ctx().service_name }}"
+        sleepsec: "{{ ctx().service_Restart_Sleep_Second }}"
+      st2kv_config:
+        #ssh.password: "{{ ctx().ssh_password_key }}"
+        #ssh.user: "{{ ctx().ssh_username_key }}"
+        winrm.password: "system.winrm.password"
+        winrm.user: "system.winrm.username"
+        winrm.port: "system.winrm.port"
+        winrm.ssl: "system.winrm.ssl"
+        winrm.ssl-verify: "system.winrm.ssl_verify"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - service_info: "{{ result().output.run.result.output }}"
+          - server_service_status: "{{ result().output.run.result.server_service_status }}"
+          - run: "{{ result().output.run }}"
+        do:
+          - itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().output.run.result.details.result_set[0].value._error.msg + '\\n' }}"
+          - error_output: "{{ result().output.run.result.details.result_set[0].value._output if '_output' in result().output.run.result.details.result_set[0].value else '' }}"
+          - run: "{{ result().output.run }}"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().service_info }}"
+    next:
+      - when: "{{ succeeded()}}"
+        do:
+          - finish
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   finish:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().server_service_status == 'stopped') }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in stopped state on server  {{ ctx().ci_address }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and (ctx().server_service_status == 'running') and not ctx().found_recurrence }}"
+        publish:
+          - am_status: "Success"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in running state on server  {{ ctx().ci_address }} "
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and (ctx().server_service_status == 'running') and ctx().found_recurrence }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in running state on server  {{ ctx().ci_address }} "
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and (ctx().server_service_status == 'successfully_started') and not ctx().found_recurrence }}"
+        publish:
+          - am_status: "Success"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in running state on server  {{ ctx().ci_address }} "
+        do:
+          - itsm_close
+      - when: "{{ succeeded() and (ctx().server_service_status == 'successfully_started') and ctx().found_recurrence }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in running state on server  {{ ctx().ci_address }} "
+        do:
+          - itsm_escalate_recurrence
+      - when: "{{ succeeded() and (ctx().server_service_status == 'disabled') }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is in disabled state on server  {{ ctx().ci_address }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and (ctx().server_service_status == 'not-found') }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is not found on server  {{ ctx().ci_address }}"
+        do:
+          - itsm_escalate
+      - when: "{{ succeeded() and (ctx().server_service_status == 'fail_to_start') }}"
+        publish:
+          - am_status: "Failure"
+          - auto_service_status_info: "The reported service ({{ ctx().service_name }}) is failed to start on server  {{ ctx().ci_address }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() }}"
+        do:
+          - noop
+
+   itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating this incident as it was unable to resolve it due to recurrence incidents.
+
+             {{ ctx().found_recurrence_value }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+            Automation is escalating this incident as it was unable to resolve it.
+
+            {{ ctx().auto_service_status_info }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+            Automation is resolving the incident. See work log for details.
+
+            {{ ctx().auto_service_status_info }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+   itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - get_end_timestamp
+      #- when: "{{ succeeded() and ctx().run_error }}"
+      #  do:
+      #    - itsm_escalate_runtime_error
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - get_end_timestamp
+
+   #itsm_escalate_runtime_error:
+   # action: ntt_itsm.itsm_incident_update
+   # input:
+   #   escalate: true
+   #   inc_id: "{{ ctx().inc_sys_id }}"
+   #   notes: "{{ ctx().error_message }} {{ ctx().error_output }}"
+   # next:
+   #   - when: "{{ succeeded() }}"
+   #     publish:
+   #       - am_status: "Failure"
+   #     do:
+   #       - get_end_timestamp
+   #   - when: "{{ failed() }}"
+   #     publish:
+   #       - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+   #       - run_error: true
+   #     do:
+   #       - itsm_cleanup
+
+   get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and not ctx().run_error_ping }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+        do:
+          - insert_db
+
+
+   insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "windows_service_check"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: |
+          {% if ctx().server_service_status == 'running' %}
+          The server {{ ctx().ci_address }} in service ({{  ctx().service_name }}) status is running.
+          {{ ctx().service_validation_result }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}
+          {% if ctx().server_service_status == 'stopped' %}
+          The server {{ ctx().ci_address }} in service ({{  ctx().service_name }}) status is stopped.
+          {{ ctx().service_validation_result }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}
+          {% if ctx().service_validation_type == 'nothing' %}
+          {{ ctx().service_validation_result }}
+          {% endif %}
+          {% if ctx().service_validation_type == 'restricted' %}
+          {{ ctx().service_validation_result }}
+          {% endif %}
+          {% if ctx().run_error %}
+          {{ ctx().error_message }}
+          {{ ctx().service_validation_result }}
+          {{ ctx().found_recurrence_value }}
+          {% endif %}
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "windows_service_check"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Windows"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ task('get_end_timestamp').end_timestamp }}"
+      start_timestamp: "{{ task('config_vars_get').end_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+   update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ( ctx().run_error or ctx().server_service_status == 'stopped') }}"
+        do:
+          - fail

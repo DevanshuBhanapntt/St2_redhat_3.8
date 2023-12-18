@@ -1,0 +1,6 @@
+---
+  class_name: "servicenowpendingtasksensor"
+  entry_point: "servicenow_pending_task_sensor.py"
+  description: "Sensor to find and keep a list of all the pending tasks in ServiceNow."
+  poll_interval: 60
+  enabled: false   

@@ -1,0 +1,28 @@
+{
+  "description": "Compress all files with the given extension(s) that are older than the given age",
+  "implementations": [
+    {"name": "disk_compress_files.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to compress files for",
+      "type": "String[1]"
+    },
+    "file_age_days": {
+      "description": "Age of files to run compression on",
+      "type": "Integer"
+    },
+    "file_extensions": {
+      "description": "List of file extensions to compress",
+      "type": "Array[String[1]]"
+    },
+    "file_min_size_mb": {
+      "description": "Files larger than this size will get compressed",
+      "type": "Integer"
+    }
+  }
+}

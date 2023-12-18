@@ -1,0 +1,16 @@
+{
+  "description": "Gather hard drive utilization information for the given VM and drive",
+  "implementations": [
+    {"name": "disk_usage_check.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ci_address": {
+      "description": "FQDN or IP address of the server",
+      "type": "String[1]"
+    },
+    "disk_name": {
+      "description": "Name of the disk to check on the server",
+      "type": "String[1]"
+    }
+  }
+}

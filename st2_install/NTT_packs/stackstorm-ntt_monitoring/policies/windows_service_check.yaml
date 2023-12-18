@@ -1,0 +1,9 @@
+pack: ntt_monitoring
+name: windows_service_check.concurrency
+description: Limits the concurrent executions for ntt_monitoring.windows_service_check
+enabled: true
+resource_ref: ntt_monitoring.windows_service_check
+policy_type: action.concurrency
+parameters:
+  action: delay
+  threshold: 50

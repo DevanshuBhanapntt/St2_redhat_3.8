@@ -1,0 +1,71 @@
+---
+# Change  customer name according to the Account
+# Required datastore keys: database.HC.drivername, database.HC.host, database.HC.username,database.HC.password, company_sys_id, customer_abbr, top_ci_assignment_group
+name: healthcheck_TOP_CI
+pack: ntt_monitoring
+description: Gather Top CI information and create problem record
+runner_type: orquesta
+entry_point: workflows/healthcheck_TOP_CI.yaml
+enabled: true
+parameters:
+  customer:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  company_sys_id:
+    type: string
+    description: "company sys id mentioned in ntt yaml configs file"
+    required: true
+    default: "{{ st2kv.system.company_sys_id }}"
+  database:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+    default: "Automation Analytics"
+  drivername:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+    default: "{{ st2kv.system.database.HC.drivername }}"
+  host:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+    default: "{{ st2kv.system.database.HC.host }}"
+  username:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+    default: "{{ st2kv.system.database.HC.username }}"
+  port:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+    default: "1433"
+  assignment_group:
+    type: string
+    description: "Assignment group for which problem ticket should be created"
+    required: true
+    default: "{{ st2kv.system.top_ci_assignment_group }}"
+  ThirtydayThreshold:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  WeeklyThreshold:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  DailyThreshold:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  NumberOfCIs:
+    type: string
+    description: "FQDN of the Windows server to check the CPUs for"
+    required: true
+  HealthCheckKey:
+    type: string
+    description: "HealthCheck key for the workflow"
+    required: true
+    default: "HC_Overall_TopCI_0000000001"

@@ -1,0 +1,17 @@
+{
+  "description": "Verify that the memoy utilization for the given VM ",
+  "implementations": [
+    {"name": "win_mem_check.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    
+      "dns_domain": {
+      "description": "DNS domain to append to the hostname",
+      "type": "String"
+    },
+    "threshold_percent": {
+      "description": "Maximum acceptable CPU usage on the server",
+      "type": "String"
+    } 
+  }
+}

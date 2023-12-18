@@ -1,0 +1,17 @@
+{
+  "description": "Verify that the service status for the given VM ",
+  "implementations": [
+    {"name": "win_service_status_check.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    
+      "dns_domain": {
+      "description": "DNS domain to append to the hostname",
+      "type": "String"
+    },
+    "service_name": {
+      "description": "validate the service status on the server",
+      "type": "String"
+    } 
+  }
+}

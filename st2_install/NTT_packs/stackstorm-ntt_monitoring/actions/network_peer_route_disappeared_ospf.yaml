@@ -1,0 +1,74 @@
+---
+name: network_peer_route_disappeared_ospf
+pack: ntt_monitoring
+description: action file for Peer Route Disappeared OSPF
+runner_type: orquesta
+entry_point: workflows/network_peer_route_disappeared_ospf.yaml
+parameters:
+  assignment_group:
+    type: string
+    description: "Assignment group from ITSM to pass into the database entry"
+    required: true
+  ci_address:
+    type: string
+    description: "IP to connect to the Network device"
+    required: true
+  customer_name:
+    type: string
+    description: "Customer name from ITSM to pass into the database entry"
+    required: true
+  customer_abbr:
+    type: string
+    description: "3 letter customer abbreviation"
+    required: true
+    default: "{{ st2kv.system.customer_abbr }}"
+  detailed_desc:
+    type: string
+    description: "Detailed description name from ITSM to pass into the database entry"
+    required: true
+  inc_number:
+    type: string
+    description: "ITSM incident number"
+    required: true
+  inc_sys_id:
+    type: string
+    description: "ITSM incident sys_id"
+    required: true
+  short_desc:
+    type: string
+    description: "Short description name from ITSM to pass into the database entry"
+    required: true
+  incident_state:
+    type: string
+    description: "ITSM incident state"
+    required: true
+    default: "2" 
+  username:
+    type: string
+    description: "username to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.username }}"
+  password:
+    type: string
+    description: "password to login to remote server"
+    required: true
+    default: "{{ st2kv.system.network.password | decrypt_kv }}"
+  os_type:
+    type: string
+    description: "OS(linux/windows)"
+    required: true
+    default: "linux" 
+  rec_short_desc:
+    type: string
+    description: "reccurence task input"
+    required: true
+  rec_detailed_desc:
+    type: string
+    description: "reccurence task input"
+    required: true
+  configuration_item_name:
+    type: string
+    description: "reccurence task input"
+    required: true
+
+

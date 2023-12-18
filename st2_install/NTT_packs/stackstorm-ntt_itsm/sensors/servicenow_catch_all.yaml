@@ -1,0 +1,22 @@
+---
+  class_name: "servicenowcatchall"
+  entry_point: "servicenow_catch_all.py"
+  description: "Sensor to find and keep a list of all the incidents which is in hung mode with automation user in ServiceNow."
+  poll_interval: 300
+  enabled: false
+  trigger_types:
+    -
+      name: "servicenow_incident_catchall"
+      description: "Sensor to find and keep a list of all the incidents which is in hung mode with automation user in ServiceNow."
+      payload_schema:
+        type: "object"
+        properties:
+          escalate:
+            type: boolean
+            format: "incident state moved to open"
+          inc_id:
+            type: string
+            format: "Unique ID for the incident to update"    
+          notes:
+            type: string
+            format: "Work notes to add to the given incident in ServiceNow"

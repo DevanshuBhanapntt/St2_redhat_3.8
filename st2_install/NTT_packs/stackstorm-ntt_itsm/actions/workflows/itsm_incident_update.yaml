@@ -1,0 +1,52 @@
+---
+# We moved this to a Python action for performance improvements
+version: 1.0
+
+description: "Checks the ITSM type from the config file and updates the appropriate incident with the given comment"
+
+input:
+  - close
+  - escalate
+  - inc_id
+  - notes
+  - work_in_progress
+
+vars:
+  - error_message: ""
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_itsm.config_vars_get
+    next:
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'servicenow' }}"
+        do:
+          - sn_update
+      - when: "{{ succeeded() and result().result['itsm_tool'] == 'helix' }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get ITSM info please check the config file and try again"
+        do:
+          - fail
+
+  sn_update:
+    action: ntt_itsm.servicenow_incident_update
+    input:
+      close: "{{ ctx().close }}"
+      escalate: "{{ ctx().escalate }}"
+      inc_sys_id: "{{ ctx().inc_id }}"
+      notes: "{{ ctx().notes }}"
+      work_in_progress: "{{ ctx().work_in_progress }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not add comments to the given servicenow incident!"
+        do:
+          - fail

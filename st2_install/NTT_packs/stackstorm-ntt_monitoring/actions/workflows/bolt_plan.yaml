@@ -1,0 +1,64 @@
+---
+version: 1.0
+
+description: Executes an bolt plan on a generic server (linux=ssh, windows=winrm)
+
+input:
+  - bolt_timeout
+  - bolt_timeout_offset
+  - os_type
+  - plan
+  - run_as_user
+  - server_fqdn
+  - params
+  - st2kv_config
+  - st2kv_facts
+  - st2kv_vars
+
+vars:
+  - run: null
+
+output:
+  - run: "{{ ctx().run }}"
+
+tasks:
+  bolt_plan_main:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().os_type == 'linux') }}"
+        publish:
+          - node_uri: ssh://{{ ctx().server_fqdn }}
+        do:
+          - bolt_plan_run
+      - when: "{{ succeeded() and (ctx().os_type == 'windows') }}"
+        publish:
+          - node_uri: winrm://{{ ctx().server_fqdn }}
+        do:
+          - bolt_plan_run
+      - when: "{{ succeeded() and (ctx().os_type not in ['windows', 'linux']) }}"
+        do:
+          - fail
+
+  bolt_plan_run:
+    action: bolt.plan_run
+    input:
+      timeout: "{{ ctx().bolt_timeout + ctx().bolt_timeout_offset }}"
+      plan: "{{ ctx().plan }}"
+      targets: "{{ ctx().node_uri }}"
+      params_obj: "{{ ctx().params }}"
+      run_as: "{{ ctx().run_as_user }}"
+      env:
+        ST2KV_CONFIG: "{{ to_json_string(ctx().st2kv_config, indent=None) }}"
+        ST2KV_FACTS: "{{ to_json_string(ctx().st2kv_facts, indent=None) }}"
+        ST2KV_VARS: "{{ to_json_string(ctx().st2kv_vars, indent=None) }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - run: "{{ result() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - run: "{{ result() }}"
+        do:
+          - fail

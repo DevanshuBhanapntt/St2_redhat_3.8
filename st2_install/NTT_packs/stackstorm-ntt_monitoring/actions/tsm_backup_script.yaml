@@ -1,0 +1,44 @@
+---
+name: tsm_backup_script
+pack: ntt_monitoring
+description: "TSM Bakup failure automation"
+runner_type: python-script
+entry_point: tsm_backup_script.py
+enabled: true
+parameters:
+  ip_address:
+    type: string
+    description: "ip address"
+    required: false
+  activity:
+    type: string
+    description: "activity"
+    required: false
+  password:
+    type: string
+    description: "password"
+    required: false
+  username:
+    type: string
+    description: "username"
+    required: false
+  command_result:
+    type: string
+    description: "command_result"
+    required: false
+  affected_drive:
+    type: string
+    description: "affected_drive"
+    required: false
+  ci_name:
+    type: string
+    description: "ci_name"
+    required: false
+  detailed_desc:
+    type: string
+    description: "detailed_desc"
+    required: false
+  path:
+    type: string
+    description: "path"
+    required: false

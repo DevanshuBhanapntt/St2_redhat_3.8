@@ -1,0 +1,89 @@
+---
+
+description: "Create Helix incident"
+enabled: true
+runner_type: "python-script"
+entry_point: helix_incident_create.py
+name: helix_incident_create
+pack: ntt_itsm
+parameters:
+  Company:
+    type: string
+    description: "Company name"
+    required: true
+  CI_Name:
+    type: string
+    description: "CI name"
+    required: true
+  First_Name:
+    type: string
+    description: "First_Name"
+    required: true
+  Last_Name:
+    type: string
+    description: "Last_Name"
+    required: true
+  Impact:
+    type: string
+    description: "Impact"
+    required: true
+  Reported_Source:
+    type: string
+    description: "Reported Source"
+    required: true
+  Urgency:
+    type: string
+    description: "Urgency"
+    required: true
+  Service_Type:
+    type: string
+    description: "Service_Type"
+    required: true
+  Description:
+    type: string
+    description: "Description"
+    required: true
+  Detailed_Decription:
+    type: string
+    description: "Detailed_Decription"
+    required: true
+  Categorization_Tier_1:
+    type: string
+    description: "Categorization Tier 1"
+    required: true
+  Categorization_Tier_2:
+    type: string
+    description: "Categorization Tier 2"
+    required: true
+  Categorization_Tier_3:
+    type: string
+    description: "Categorization Tier 3"
+    required: true
+  Product_Categorization_Tier_1:
+    type: string
+    description: "Product Categorization Tier 1"
+    required: true
+  Product_Categorization_Tier_2:
+    type: string
+    description: "Product Categorization Tier 2"
+    required: true
+  Product_Categorization_Tier_3:
+    type: string
+    description: "Product Categorization Tier 3"
+    required: true
+  Product_Name:
+    type: string
+    description: "Product_Name"
+    required: true
+  Assigned_Support_Company:
+    type: string
+    description: "Assigned Support Company"
+    required: true
+  Assigned_Support_Organization:
+    type: string
+    description: "Assigned_Support_Organization"
+    required: true
+  Assigned_Group:
+    type: string
+    description: "Assigned_Group"
+    required: true

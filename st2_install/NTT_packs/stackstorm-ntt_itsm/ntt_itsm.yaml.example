@@ -1,0 +1,22 @@
+---
+itsm_tool: "servicenow"
+
+servicenow:
+  url: "test.service-now.com"
+  username: "snuser"
+  password: "snpass"
+  company_sys_id : "XXXXXXXXXXXXXXX"
+
+helix:
+  url: "helix.com"
+  username: "huser"
+  password: "hpass"
+  Company_name: "xxxxx"
+  Automation_Login_ID: "xxxx"
+  Automation_Login_Name: "xxxx"
+  Status_Reason: "17000"
+  Resolution_Category: "FAILURE"
+  Resolution_Category_Tier_2: "PERFORMANCE"
+  Resolution_Category_Tier_3: "NO ACTION TAKEN"
+  Resolution_Method: "Self-Service"
+  Generic_Categorization_Tier_1: "Other"

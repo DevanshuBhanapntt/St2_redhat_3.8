@@ -1,0 +1,13 @@
+---
+description: "Get a list of processing Helix change from the kv store and check if they are still open"
+enabled: true
+runner_type: "python-script"
+entry_point: helix_processing_change_check.py
+name: helix_processing_change_check
+pack: ntt_itsm
+parameters:
+  inc_st2_key:
+    type: string
+    description: "ITSM Change ID to add to the kv store"
+    required: true
+    default: "helix.change_processing"

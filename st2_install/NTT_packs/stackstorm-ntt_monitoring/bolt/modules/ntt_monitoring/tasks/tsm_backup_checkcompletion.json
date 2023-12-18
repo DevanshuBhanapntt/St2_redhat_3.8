@@ -1,0 +1,44 @@
+{
+  "description": "Verify that tsm backup completion",
+  "implementations": [
+    {"name": "tsm_backup_checkcompletion.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ip_address": {
+      "description": "IP Address tsm of server",
+      "type": "String[1]"
+    },
+    "ci_name": {
+      "description": "CI Name",
+      "type": "String[1]"
+    },
+    "system_drive_letter": {
+      "description": "System Drive Letter",
+      "type": "String"
+    },
+    "username": {
+      "description": "Username of remote machine",
+      "type": "String"
+    },
+    "password": {
+      "description": "Password to remote machine",
+      "type": "String"
+    },
+	"file_name_string": {
+      "description": "Batch file name string",
+      "type": "String"
+    },
+	"process_id": {
+      "description": "Process id of tsm backup",
+      "type": "String"
+    },
+	"last_iteration": {
+      "description": "Last iteration",
+      "type": "String"
+    },
+	"incident_state": {
+      "description": "incident state",
+      "type": "String"
+    }
+  }
+}

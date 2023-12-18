@@ -1,0 +1,28 @@
+{
+  "description": "intiate tsm backup health check",
+  "implementations": [
+    {"name": "tsm_backup_healthcheck.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ip_address": {
+      "description": "IP Address tsm of server",
+      "type": "String[1]"
+    },
+    "ci_name": {
+      "description": "CI Name",
+      "type": "String[1]"
+    },
+    "affected_drive": {
+      "description": "System Drive Letter",
+      "type": "String"
+    },
+    "username": {
+      "description": "Username of remote machine",
+      "type": "String"
+    },
+    "password": {
+      "description": "Password to remote machine",
+      "type": "String"
+    }
+  }
+}

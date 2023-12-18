@@ -1,0 +1,40 @@
+{
+  "description": "Verify that the CPU utilization for the given VM is below the given threshold",
+  "implementations": [
+    {"name": "cpu_check_unix.sh"}
+  ],
+  "parameters": {
+    "status": {
+      "description": "Ticket Status",
+      "type": "String"
+    },
+    "threshold": {
+      "description": "Current CPU threshold",
+      "type": "Integer"
+    },
+	"host_username": {
+      "description": "Remote server username",
+      "type": "String"
+    },
+	"host_password": {
+      "description": "remote server password",
+      "type": "String"
+    },
+	"solaris_username": {
+      "description": "solaris Remote server username",
+      "type": "String"
+    },
+	"solaris_password": {
+      "description": "solaris remote server password",
+      "type": "String"
+    },
+	"hostname": {
+      "description": "remote server",
+      "type": "String"
+    },
+	"os_name": {
+      "description": "os name of server",
+      "type": "String"
+    }
+  }
+}

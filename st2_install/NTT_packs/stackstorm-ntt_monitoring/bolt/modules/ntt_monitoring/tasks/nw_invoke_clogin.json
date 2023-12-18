@@ -1,0 +1,34 @@
+{
+  "description": "Runs a script on a remote network device to retrieve results",
+  "implementations": [
+    {
+      "name": "nw_invoke_clogin.sh"
+    }
+  ],
+  "parameters": {
+    "device_ip": {
+      "description": "device_ip",
+      "type": "String[1]"
+    },
+	"device_username": {
+      "description": "device_username name",
+      "type": "String[1]"
+    },
+    "device_password": {
+      "description": "device_password",
+      "type": "String[1]"
+    },
+	"commands": {
+      "description": "commands",
+      "type": "String[1]"
+    },
+	"clogin_script_path": {
+      "description": "clogin_script_path",
+      "type": "String[1]"
+    },
+    "nms_ip": {
+      "description": "nms_ip",
+      "type": "String[1]"
+    }	
+  }
+}

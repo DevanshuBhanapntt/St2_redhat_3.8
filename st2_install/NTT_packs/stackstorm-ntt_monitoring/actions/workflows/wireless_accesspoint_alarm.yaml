@@ -1,0 +1,481 @@
+---
+version: 1.0
+description: "Checking wireless accesspoint alarm status in controller network device"
+#platform: Network
+#Datastore Keys Used: network.username , network.password , NW_WAP_Rec_logic_days
+
+input:
+  - assignment_group
+  - ci_address
+  - customer_name
+  - customer_abbr
+  - detailed_desc
+  - rec_detailed_desc
+  - inc_number
+  - inc_sys_id
+  - incident_state
+  - short_desc
+  - rec_short_desc
+  - username
+  - password
+  - script_name
+  - script_options
+  - mobility_command
+  - mac_command
+  - accesspoint_name
+  - mobility_start_index_check
+  - ap_join_status_cmd
+  - mac_start_index_check
+  - end_index_check
+  - configuration_item_name
+
+vars:
+  - am_status: ""
+  - error_message: ""
+  - run_error: ""
+  - controller_status: ""
+  - update_kv_result: ""
+  - login_status: ""
+  - start_timestamp: ""
+  - end_timestamp: ""
+  - found_recurrence: ""
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: ""
+  - ping_retry: 0
+  - ping_sleep_secs: 300
+  - ping_output: ""
+  - stdout_data: ""
+  - worknote: ""
+  - login_result: ""
+
+output:
+  - assignment_group: "{{ ctx().assignment_group }}"
+  - ci_address: "{{ ctx().ci_address }}"
+  - customer_name: "{{ ctx().customer_name }}"
+  - customer_abbr: "{{ ctx().customer_abbr }}"
+  - detailed_desc: "{{ ctx().detailed_desc }}"
+  - inc_number: "{{ ctx().inc_number }}"
+  - inc_sys_id: "{{ ctx().inc_sys_id }}"
+  - incident_state: "{{ ctx().incident_state }}"
+  - short_desc: "{{ ctx().short_desc }}"
+  - login_status: "{{ ctx().login_status }}"
+  - am_status: "{{ ctx().am_status }}"
+  - error_message: "{{ ctx().error_message }}"
+  - run_error: "{{ ctx().run_error }}"
+  - controller_status: "{{ ctx().controller_status }}"
+  - update_kv_result: "{{ ctx().update_kv_result }}"
+
+
+tasks:
+  check_incident_state:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and (ctx().incident_state == '2') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state == '-5') }}"
+        publish:
+          - start_timestamp: "{{ task('check_incident_state').start_timestamp }}"
+        do:
+          - incident_move_inprogress
+      - when: "{{ succeeded() and (ctx().incident_state not in ['2', '-5']) }}"
+        publish:
+          - error_message: "Incident state is not open or pending"
+          - run_error: true
+          - end_timestamp: "{{ task('check_incident_state').end_timestamp ]]"
+        do:
+          - insert_db
+
+  incident_move_inprogress:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation(Stackstorm). Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_recurrence
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident for {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+      rec_ds_key_name: "NW_WAP_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - worknote: |
+                        Recurrence status: 
+                        {{ ctx().found_recurrence_value }}
+        do:
+          - itsm_update_results
+          - check_ping
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+          - worknote: "Automation found no recurring incidents."
+        do:
+          - itsm_update_results
+          - check_ping
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().worknote }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the recurrence details in ITSM incident {{ ctx().inc_number }}!"
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('rec_itsm_update_results').end_timestamp }}"
+        do:
+          - itsm_cleanup
+          
+  check_ping:
+    action: core.local
+    input: 
+      cmd: "ping -c 4 {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ping_result: "{{ result().succeeded }}" 
+          - ping_output: "{{ result().stdout }}" 
+          - worknote: |
+              The device {{ ctx().ci_address }} is reachable. Proceeding with WAP Analysis.
+              
+              {{ ctx().ping_output }}
+        do:
+          - itsm_update_results  
+          - check_connectivity
+      - when: "{{ failed() and ctx().ping_retry < 3 }}"
+        publish:
+          - error_message: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - ping_output: "{{ result().stdout }}" 
+          - run_error: true
+          - worknote: |
+               Automation found the device {{ ctx().ci_address }} is not reachable. The ping status will be checked again in 5 minutes.
+               {{ ctx().ping_output }}
+          - ping_retry: "{{ ctx().ping_retry + 1 }}"
+        do:
+          - itsm_update_results
+          - ping_delay
+      - when: "{{ failed() and ctx().ping_retry >= 3 }}"
+        publish:
+          - error_message: "the device {{ ctx().ci_address }} is not reachable even after 15 minutes."
+          - ping_output: "{{ result().stdout }}" 
+          - run_error: true
+          - stdout_data: "{{ ctx().ping_output }}"
+        do:
+          - itsm_escalate
+  
+  ping_delay:
+    action: core.local
+    input: 
+      cmd: "sleep {{ ctx().ping_sleep_secs }}"
+      timeout: 350
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_ping
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error: true
+          - worknote: |
+               Automation found the device {{ ctx().ci_address }} is not reachable. Escalating the ticket.
+              
+               {{ ctx().error_message }}
+        do:
+          - itsm_escalate
+  
+  check_connectivity:
+    action: ntt_monitoring.check_connectivity
+    input:
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      ci_address: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and result().result }}"
+        publish:
+          - login_status: "Login Successful"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+          - login_result: "{{ result().stdout }}"
+        do:
+          - get_controller_ap_status
+      - when: "{{ succeeded() and not result().result }}"
+        publish:
+          - login_status: "Login Failed"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+          - login_result: "{{ result().stdout if (result().stdout) else result().stderr}}"
+        do:
+          - itsm_escalate_login_failed
+      - when: "{{ failed() }}"
+        publish:
+          - login_status: "Fail"
+          - end_timestamp: "{{ task('check_connectivity').end_timestamp }}"
+          - login_result: "{{ result().stdout if (result().stdout) else result().stderr}}"
+        do:
+          - itsm_escalate_login_failed
+
+  get_controller_ap_status:
+    action: ntt_monitoring.get_command_output
+    input:
+      script_name: "{{ ctx().script_name }}"
+      script_options: "{{ ctx().script_options }}"
+      username: "{{ ctx().username }}"
+      password: "{{ ctx().password }}"
+      mobility_command: "{{ ctx().mobility_command }}"
+      mac_command: "{{ ctx().mac_command }}"
+      accesspoint_name: "{{ ctx().accesspoint_name }}"
+      ci_address: "{{ ctx().ci_address }}"
+      mobility_start_index_check: "{{ ctx().mobility_start_index_check }}"
+      ap_join_status_cmd: "{{ ctx().ap_join_status_cmd }}"
+      mac_start_index_check: "{{ ctx().mac_start_index_check }}"
+      end_index_check: "{{ ctx().end_index_check }}"
+      timeout: 800
+    next:
+      - when: "{{ succeeded() and result().result == 'SUCCESS' }}"
+        publish:
+          - controller_status: "{{ result().result }}"
+          - stdout_data: "{{ result().stdout }}"
+          - end_timestamp: "{{ task('get_controller_ap_status').end_timestamp }}"
+        do:
+          - finish
+      - when: "{{ failed() and result().result == 'RESULTS_EMPTY' }}"
+        publish:
+          - error_message: "No results found after executing show ap search <ap_name> command in all controllers confiured in mobility group"
+          - stdout_data: "{{ result().stdout }}"
+          - end_timestamp: "{{ task('get_controller_ap_status').end_timestamp }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() and result().result == 'FLAPPING' }}"
+        publish:
+          - error_message: "Flapping issue observed for accesspoint join status"
+          - stdout_data: "{{ result().stdout }}"
+          - end_timestamp: "{{ task('get_controller_ap_status').end_timestamp }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() and result().result == 'FAILURE' }}"
+        publish:
+          - error_message: "Accesspoint not connected to any of the controller."
+          - stdout_data: "{{ result().stdout }}"
+          - end_timestamp: "{{ task('get_controller_ap_status').end_timestamp }}"
+        do:
+          - itsm_escalate
+      - when: "{{ failed() and result().result != 'FAILURE' and result().result != 'FLAPPING' and result().result != 'RESULTS_EMPTY' }}"
+        publish:
+          - controller_status: "{{ result().result }}"
+          - stdout_data: "{{ result().stdout }}"
+          - error_message: |
+                         Failed to get data for accesspoint. 
+                         {{ result().stdout }}
+          - end_timestamp: "{{ task('get_controller_ap_status').end_timestamp }}"
+        do:
+          - itsm_cleanup
+
+  itsm_escalate_login_failed:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating this incident as it was unable to login to the WAP {{ ctx().ci_address }}
+             {{ ctx().login_result }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }} while escalate"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate_login_failed').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating this incident as {{ ctx().error_message }}
+             {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ not ctx().found_recurrence }}"
+        do:
+          - itsm_close
+      - when: "{{ ctx().found_recurrence  }}"
+        do:
+          - itsm_escalate_recurrence
+  
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is resolving the incident. 
+             
+             Accesspoint connection status:              
+             {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Success"
+        do:
+          - update_kv_var
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+        do:
+           - itsm_cleanup
+           
+  itsm_escalate_recurrence:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: |
+             Automation is escalating this incident due to recurrence.
+             
+             Accesspoint connection status:              
+             {{ ctx().stdout_data }}
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update ITSM incident {{ ctx().inc_number }}"
+          - run_error: true
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "wireless_accesspoint_alarm"
+        Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc:
+        AM_Status: "{{ 'Failure' if ctx().run_error else 'Success' }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "helix"
+        Job_Id: <% ctx(st2).action_execution_id %>
+        Module_Name: "wireless_accesspoint_alarm"
+        Ref_No: "{{ ctx().inc_number }}"
+        # Tower_Name: "{{ ctx().os_type }}"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc | replace(':', ': ') }}"
+        Detail_Desc: "{{ ctx().detailed_desc | replace(':', ': ') }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().customer_name }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error and ctx().am_status == 'Success' }}"
+        do:
+          - noop
+      - when: "{{ succeeded() and ctx().run_error }}"
+        do:
+          - fail
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} removed successfully from datastore"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - update_kv_result: "{{ ctx().inc_number }} not removed"
+        do:
+          - fail

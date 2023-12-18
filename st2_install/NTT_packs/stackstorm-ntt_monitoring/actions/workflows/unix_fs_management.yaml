@@ -1,0 +1,627 @@
+---
+version: 1.0
+description: Gather File System usage utilization information for the given VM
+#Datastore Keys: unix_fs_Rec_logic_days
+
+input:
+  - ci_address
+  - customer_abbr
+  - customer_name
+  - mount_point
+  - file_threshold
+  - inc_number
+  - inc_sys_id
+  - assignment_group
+  - short_desc
+  - detailed_desc
+  - rec_short_desc
+  - rec_detailed_desc
+  - configuration_item_name
+
+vars:
+  - end_timestamp: ""
+  - error_message: ""
+  - error_output: ""
+  - output_message: ""
+  - Threshold_message1: ""
+  - Threshold_message2: ""
+  - Compress_message: ""
+  - run_error: false
+  - run_error_config: false
+  - run_error_ping: false
+  - run_error_cmd_ping: false
+  - run_error_uptime: false
+  - ping_result: ""
+  - recheck_total: 0
+  - start_timestamp: ""
+  - threshold_passed: true
+  - filesystem_current_util: null
+  - filesystem_proccess_info: ""
+  - ping_count: ""
+  - recheck_limit: ""
+  - rerun_action: null
+  - sleep_interval: ""
+  - ssh_password: ""
+  - ssh_username: ""
+  - uptime_threshold: ""
+  - winrm_password: ""
+  - winrm_port: ""
+  - winrm_scheme: ""
+  - winrm_username: ""
+  - winrm_verify_ssl: ""
+  - inc_close: false
+  - timestamp_task: ""
+  - work_notes: ""
+  - Threshold_message : ""
+  - found_recurrence: false
+  - found_recurrence_value: ""
+  - found_recurrence_inc_cnt: 0
+  - need_compress: 'false'  # change this if your compress command need to be executed for your account.
+
+output:
+  - error_message: "{{ ctx().error_message }}"
+  - ping_result: "{{ ctx().ping_result }}"
+  - filesystem_Utilization_Output: "{{ ctx().filesystem_proccess_info }}"
+  - filesystem_Utilization: "{{ ctx().filesystem_current_util }}"
+  - Threshold_message1: "{{ ctx().Threshold_message1 }}"
+  - Threshold_message2: "{{ ctx().Threshold_message2 }}"
+  - output_message: "{{ ctx().output_message }}"
+
+tasks:
+  config_vars_get:
+    action: ntt_monitoring.config_vars_get
+    input:
+      customer_abbr: "{{ ctx().customer_abbr }}"
+      workflow_overrides:
+        ping_count: "{{ ctx().ping_count }}"
+        recheck_limit: "{{ ctx().recheck_limit }}"
+        sleep_interval: "{{ ctx().sleep_interval }}"
+        ssh_password: "{{ ctx().ssh_password }}"
+        ssh_username: "{{ ctx().ssh_username }}"
+        uptime_threshold: "{{ ctx().uptime_threshold }}"
+        winrm_password: "{{ ctx().winrm_password }}"
+        winrm_port: "{{ ctx().winrm_port }}"
+        winrm_scheme: "{{ ctx().winrm_scheme }}"
+        winrm_username: "{{ ctx().winrm_username }}"
+        winrm_verify_ssl: "{{ ctx().winrm_verify_ssl }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - ssh_password: "{{ result().result.connections.ssh_password if 'connections' in result().result and 'ssh_password' in result().result.connections else '' }}"
+          - ssh_username: "{{ result().result.connections.ssh_username if 'connections' in result().result and 'ssh_username' in result().result.connections else '' }}"
+          - ssh_solaris_username: "{{ result().result.connections.ssh_solaris_username if 'connections' in result().result and 'ssh_solaris_username' in result().result.connections else '' }}"
+          - ssh_solaris_password: "{{ result().result.connections.ssh_solaris_password if 'connections' in result().result and 'ssh_solaris_password' in result().result.connections else '' }}"
+          - winrm_password: "{{ result().result.connections.winrm_password if 'connections' in result().result and 'winrm_password' in result().result.connections else '' }}"
+          - winrm_port: "{{ result().result.connections.winrm_port if 'connections' in result().result and 'winrm_port' in result().result.connections else ''}}"
+          - winrm_scheme: "{{ result().result.connections.winrm_scheme if 'connections' in result().result and 'winrm_scheme' in result().result.connections else '' }}"
+          - winrm_username: "{{ result().result.connections.winrm_username if 'connections' in result().result and 'winrm_username' in result().result.connections else '' }}"
+          - winrm_verify_ssl: "{{ result().result.connections.winrm_verify_ssl if 'connections' in result().result and 'winrm_verify_ssl' in result().result.connections else '' }}"
+          - uptime_threshold: "{{ result().result.threshold_uptime_low | int if 'threshold_uptime_low' in result().result else '' }}"
+          - sleep_interval: "{{ result().result.sleep_interval | int if 'sleep_interval' in result().result else '' }}"
+          - recheck_limit: "{{ result().result.recheck_limit | int if 'recheck_limit' in result().result else '' }}"
+          - ping_count: "{{ result().result.ping_count | int if 'ping_count' in result().result else '' }}"
+          - start_timestamp: "{{ task('config_vars_get').start_timestamp }}"
+        do:
+          - itsm_begin
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Could not get connection info for {{ ctx().customer_abbr }} or default please check the config file and try again"
+          - run_error_config: true
+        do:
+          - noop
+
+
+  itsm_begin:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      work_in_progress: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "Incident assigned to Automation. Work in progress.\n Automation Job ID: <% ctx(st2).action_execution_id %>"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - check_mount
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  check_mount:
+    action: core.noop
+    next:
+      - when: "{{ '/var' in ctx().mount_point | lower }}"
+        do:
+          - check_recurrence
+      - when: "{{ '/var' not in ctx().mount_point | lower }}"
+        publish:
+          - error_message: |
+                     Automation is not enabled for this mount point. Escalating the ticket.
+        do:
+          - itsm_cleanup
+
+  check_recurrence:
+    action: ntt_itsm.itsm_recurrence_logic
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      rec_ds_key_name: "unix_fs_Rec_logic_days"
+      company_name: "{{ ctx().customer_name }}"
+      ci_name: "{{ ctx().configuration_item_name }}"
+      short_desc: "{{ ctx().rec_short_desc }}"
+      long_desc: "{{ ctx().rec_detailed_desc }}"
+    next:
+      - when: "{{ succeeded() and result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "{{ result().result.value }}"
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ succeeded() and not result().result.Found_Recurrence }}"
+        publish:
+          - found_recurrence: "{{ result().result.Found_Recurrence }}"
+          - found_recurrence_value: "Automation found no recurring incidents."
+          - found_recurrence_inc_cnt: "{{ result().result.Found_Recurrence_Inc_Cnt }}"
+        do:
+          - rec_itsm_update_results
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to get the recurrence details from ITSM incident {{ ctx().inc_number }}!"
+        do:
+          - itsm_cleanup
+
+  rec_itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().found_recurrence_value }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - ping_test
+      - when: "{{ failed() }}"
+        do:
+          - itsm_cleanup
+
+  ping_test:
+    action: core.local
+    input:
+      cmd: "ping -c 5 {{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout }}"
+          - run_error_ping: false
+          - notes:  |
+             Device {{ ctx().ci_address }} is reachable.
+             
+             {{ ctx().ping_result }}
+        do:
+          - itsm_update_results
+          - check_os
+      - when: "{{ failed() }}"
+        publish:
+          - end_timestamp: "{{ task('ping_test').end_timestamp }}"
+          - ping_result: "{{ result().stdout if result().stdout != '' else result().stderr }}"
+          - run_error_ping: true
+          - work_notes: |
+                         Device {{ ctx().ci_address }} is not reachable.
+                         
+                         {{ ctx().ping_result }}
+        do:
+          - itsm_escalate
+
+  itsm_update_results:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error_ping: false
+          - run_error: true
+        do:
+          - itsm_cleanup
+
+  check_os:
+    action: core.noop
+    next:
+      - when: "{{ 'solaris' in ctx().assignment_group | lower }}"
+        do:
+          - file_system_usage_check_solaris
+      - when: "{{ 'solaris' not in ctx().assignment_group | lower }}"
+        do:
+          - file_system_usage_check
+
+  file_system_usage_check_solaris:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      username: "{{ ctx().ssh_solaris_username }}"
+      password: "{{ ctx().ssh_solaris_password }}"
+      cmd: "df -h {{ ctx().mount_point }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - filesystem_proccess_info: "{{ result()[ctx().ci_address].stdout }}"
+          - notes: |
+                  File System Utilization:
+                  {{ ctx().filesystem_proccess_info }}
+        do:
+          - itsm_update_results
+          - file_system_usage_check_value_solaris
+      - when: "{{ failed() and 'error' in result() }}"
+        publish:
+          - filesystem_proccess_info: "{{ result().error }}"
+          - work_notes: |
+                      Automation is escalating the ticket. File system usage check command failed.
+                      
+                      {{ ctx().filesystem_proccess_info }}
+          - run_error: true
+        do:
+          - itsm_escalate
+      - when: "{{ failed() and 'error' not in result() }}"
+        publish:
+          - filesystem_proccess_info: "{{ result()[ctx().ci_address].stderr }}"
+          - work_notes: |
+                      Automation is escalating the ticket. File system usage check command failed.
+                      
+                      {{ ctx().filesystem_proccess_info }}
+          - run_error: true
+        do:
+          - itsm_escalate
+
+  file_system_usage_check_value_solaris:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      username: "{{ ctx().ssh_solaris_username }}"
+      password: "{{ ctx().ssh_solaris_password }}"
+      cmd: "df -h {{ ctx().mount_point }} | awk 'NR>1 {print $5}' | sed 's/%//g'"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - filesystem_current_util: "{{ result()[ctx().ci_address].stdout | int }}"
+        do:
+          - compare_with_threshold_solaris
+      - when: "{{ failed() }}"
+        publish:
+          - filesystem_current_util: "{{ result()[ctx().ci_address].stderr }}"
+          - work_notes: |
+                     Automation is escalating the ticket. File system usage check command failed.
+                     
+                     Error : {{ ctx().filesystem_current_util }}
+          - run_error: true
+        do:
+          - itsm_escalate
+
+  compare_with_threshold_solaris:
+    action: core.noop
+    next:
+      - when: "{{ ctx().filesystem_current_util < ctx().file_threshold | int }}"
+        publish:
+          - Threshold_message: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is below the threshold and is currently {{ ctx().filesystem_current_util }}%."
+          - inc_close: true
+        do:
+          - finish_rec
+      - when: "{{ ctx().filesystem_current_util >= ctx().file_threshold | int }}"
+        publish:
+          - Threshold_message: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().filesystem_current_util }}%."
+          - inc_close: false
+        do:
+          - finish_rec
+
+  file_system_usage_check:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      username: "{{ ctx().ssh_username }}"
+      password: "{{ ctx().ssh_password }}"
+      cmd: "df -Th {{ ctx().mount_point }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - filesystem_proccess_info: "{{ result()[ctx().ci_address].stdout }}"
+        do:
+          - file_system_usage_check_value
+      - when: "{{ failed() }}"
+        publish:
+          - filesystem_proccess_info: "{{ result()[ctx().ci_address].stderr }}"
+          - work_notes: |
+                      Automation is escalating the ticket. File system usage check command failed.
+                      
+                      {{ ctx().filesystem_proccess_info }}
+          - run_error: true
+        do:
+          - itsm_escalate
+
+  file_system_usage_check_value:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      username: "{{ ctx().ssh_username }}"
+      password: "{{ ctx().ssh_password }}"
+      cmd: "df -Th {{ ctx().mount_point }} | awk 'NR>1 {print $6}' | sed 's/%//g'"
+    next:
+      - when: "{{ succeeded() and not ctx().Compress_message }}"
+        publish:
+          - filesystem_current_util: "{{ result()[ctx().ci_address].stdout | int }}"
+        do:
+          - compare_with_threshold
+      - when: "{{ succeeded() and ctx().Compress_message }}"
+        publish:
+          - filesystem_current_util: "{{ result()[ctx().ci_address].stdout | int }}"
+        do:
+          - finish
+      - when: "{{ failed() and not ctx().filesystem_current_util }}"
+        publish:
+          - filesystem_current_util: "{{ result()[ctx().ci_address].stderr }}"
+          - work_notes: |
+                     Automation is escalating the ticket. File system usage check command failed.
+                     
+                     {{ ctx().filesystem_proccess_info }}
+                     
+                     Error : {{ ctx().filesystem_current_util }}
+          - run_error: true
+        do:
+          - itsm_escalate
+
+  compare_with_threshold:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().filesystem_current_util <= ctx().file_threshold | int }}"
+        publish:
+          - Threshold_message1: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is below the threshold and is currently {{ ctx().filesystem_current_util }}%."
+        do:
+          - finish
+      - when: "{{ succeeded() and ctx().filesystem_current_util >= ctx().file_threshold | int and not ctx().Compress_message }}"
+        publish:
+          - Threshold_message2: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().filesystem_current_util }}%. {{ ctx().Compress_message }}."
+        do:
+          - file_system_compress
+      - when: "{{ succeeded() and ctx().filesystem_current_util >= ctx().file_threshold | int and ctx().Compress_message }}"
+        publish:
+          - Threshold_message2: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().filesystem_current_util }}%. {{ ctx().Compress_message }}."
+        do:
+          - finish
+
+  file_system_compress:
+    action: core.remote
+    input:
+      hosts: "{{ ctx().ci_address }}"
+      username: "{{ ctx().ssh_username }}"
+      password: "{{ ctx().ssh_password }}"
+      cmd: "sudo yum clean all ; var=$(find {{ ctx().mount_point }}/log -type f \\( -name *message* -o -name *secure* \\) ! -mtime -15 -type f -printf '%s %p\n'); echo $var; sudo gzip -f -v -9 $var | sed 's/\\u//g' "
+      timeout: 800
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - Compress_message: |
+                    Cleared the cache and able to compress last 15 days log files (type message and secure) for {{ ctx().ci_address }}
+                    
+                    {{ result()[ctx().ci_address].stdout }}
+        do:
+          - file_system_usage_check
+      - when: "{{ failed() and result()[ctx().ci_address].stdout != '' }}"
+        publish:
+          - Compress_message: |
+                    Automation compressed below files in last 15 days log files (type message and secure) for {{ ctx().ci_address }}.
+                    
+                    Compression successful:
+                    {{ result()[ctx().ci_address].stdout }}
+                    
+                    Compression failed:
+                    {{ result()[ctx().ci_address].stderr }}
+        do:
+          - file_system_usage_check
+      - when: "{{ failed() and result()[ctx().ci_address].stdout == '' }}"
+        publish:
+          - work_notes: |
+                    Unable to compress last 15 days log files (type message and secure) for {{ ctx().ci_address }}.
+                    
+                    {{ result()[ctx().ci_address].stderr }}
+        do:
+          - itsm_escalate
+
+  finish:
+    action: core.noop
+    next:
+      - when: "{{ ctx().filesystem_current_util <= ctx().file_threshold | int and not ctx().Compress_message  }}"
+        publish:
+          - Threshold_message: "The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is below the threshold and is currently {{ ctx().filesystem_current_util }}%."
+          - inc_close: true
+        do:
+          - finish_rec
+      - when: "{{ ctx().filesystem_current_util <= ctx().file_threshold | int and ctx().Compress_message }}"
+        publish:
+          - Threshold_message: |
+                       The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is below the threshold and is currently {{ ctx().filesystem_current_util }}%.
+                       
+                       {{ ctx().filesystem_proccess_info  }}
+                       
+                       {{ ctx().Compress_message }}
+          - inc_close: true
+        do:
+          - finish_rec
+      - when: "{{ ctx().filesystem_current_util >= ctx().file_threshold | int }}"
+        publish:
+          - Threshold_message: |
+                        The filesystem {{ ctx().mount_point }} utilization for {{ ctx().ci_address }} is above the threshold and is currently {{ ctx().filesystem_current_util }}%. {{ ctx().filesystem_proccess_info }}
+                        
+                        {{ ctx().Compress_message }}.
+          - inc_close: false
+        do:
+          - finish_rec
+
+
+  finish_rec:
+    action: core.noop
+    next:
+      - when: "{{ ctx().inc_close and not ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+                    Automation is resolving the incident. Please check below work log for details,
+                    
+                    {{ ctx().Threshold_message }}
+        do:
+          - itsm_close
+      - when: "{{ ctx().inc_close and ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+                    Automation is escalating the incident due to recurrence. Please check below work log for details,
+                    
+                    {{ ctx().Threshold_message }}
+        do:
+          - itsm_escalate
+      - when: "{{ not ctx().inc_close and ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+                    Automation is escalating the incident due to recurrence and utilization,
+                    
+                    {{ ctx().Threshold_message }}
+        do:
+          - itsm_escalate
+      - when: "{{ not ctx().inc_close and not ctx().found_recurrence }}"
+        publish:
+          - work_notes: |
+                    Automation is escalating the incident. Please check below work log for details,
+                    
+                    {{ ctx().Threshold_message }}
+        do:
+          - itsm_escalate
+
+
+  itsm_close:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      close: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().work_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - output_message: "Update the ITSM incident {{ ctx().inc_number }}"
+          - timestamp_task: "close"
+          - am_status: "Success"
+        do:
+          - update_kv_var
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+
+  itsm_escalate:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().work_notes }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - output_message: "Updating  ITSM incident {{ ctx().inc_number }}"
+          - timestamp_task: "escalate"
+          - am_status: "Failure"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}"
+        do:
+          - itsm_cleanup
+
+  itsm_cleanup:
+    action: ntt_itsm.itsm_incident_update
+    input:
+      escalate: true
+      inc_id: "{{ ctx().inc_sys_id }}"
+      notes: "{{ ctx().error_message }}"
+    next:
+      - when: "{{ succeeded() }}"
+        publish:
+          - am_status: "Failure"
+          - timestamp_task: "clean"
+        do:
+          - get_end_timestamp
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "Unable to update the ITSM incident {{ ctx().inc_number }}!"
+          - run_error: true
+        do:
+          - fail
+
+  get_end_timestamp:
+    action: core.noop
+    next:
+      - when: "{{ succeeded() and ctx().timestamp_task == 'close' }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_close').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and ctx().timestamp_task == 'escalate' }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_escalate').end_timestamp }}"
+        do:
+          - insert_db
+      - when: "{{ succeeded() and ctx().timestamp_task == 'clean' }}"
+        publish:
+          - end_timestamp: "{{ task('itsm_cleanup').end_timestamp }}"
+        do:
+          - insert_db
+
+  insert_db:
+    action: ntt_monitoring.sql_insert
+    input:
+      metric_data:
+        Description: "nw_unreachable_to_ping"
+        Status: "Success"
+      process_data:
+        Account_Name: "{{ ctx().customer_name }}"
+        AM_Desc: "{{ ctx().work_notes }}"
+        AM_Status: "{{ ctx().am_status }}"
+        Configuration_Item: "{{ ctx().ci_address }}"
+        ITSM_Name: "servicenow"
+        Job_ID: <% ctx(st2).action_execution_id %>
+        Module_Name: "nw_unreachable_to_ping"
+        Ref_No: "{{ ctx().inc_number }}"
+        Tower_Name: "Network"
+        Assignment_Group: "{{ ctx().assignment_group }}"
+        Short_Desc: "{{ ctx().short_desc }}"
+        Detail_Desc: "{{ ctx().detailed_desc }}"
+      end_timestamp: "{{ ctx().end_timestamp }}"
+      start_timestamp: "{{ ctx().start_timestamp }}"
+      account_name: "{{ ctx().customer_name }}"
+      account_service: "{{ ctx().assignment_group }}"
+      incident_id: "{{ ctx().inc_number }}"
+      configuration_item: "{{ ctx().ci_address }}"
+    next:
+      - when: "{{ succeeded() }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        publish:
+          - error_message: "There was an error inserting into the database. Please see the execution for details."
+        do:
+          - fail
+
+  update_kv_var:
+    action: ntt_itsm.itsm_processing_incs_remove
+    input:
+      inc_id: "{{ ctx().inc_number }}"
+    next:
+      - when: "{{ succeeded() and not ctx().run_error }}"
+        do:
+          - noop
+      - when: "{{ failed() }}"
+        do:
+          - fail

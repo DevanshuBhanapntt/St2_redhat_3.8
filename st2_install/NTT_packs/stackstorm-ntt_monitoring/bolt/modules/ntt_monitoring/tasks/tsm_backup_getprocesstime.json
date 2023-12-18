@@ -1,0 +1,40 @@
+{
+  "description": "get tsm backup processing time",
+  "implementations": [
+    {"name": "tsm_back_getprocesstime.ps1", "requirements": ["powershell"]}
+  ],
+  "parameters": {
+    "ip_address": {
+      "description": "IP Address tsm of server",
+      "type": "String[1]"
+    },
+    "ci_name": {
+      "description": "CI Name",
+      "type": "String[1]"
+    },
+    "affected_drive": {
+      "description": "System Drive Letter",
+      "type": "String"
+    },
+    "username": {
+      "description": "Username of remote machine",
+      "type": "String"
+    },
+    "password": {
+      "description": "Password to remote machine",
+      "type": "String"
+    },
+	"is_eighthour_ci": {
+      "description": "if_eighthour_ci",
+      "type": "String"
+    },
+	"service_window_check": {
+      "description": "service_windowscheck",
+      "type": "String"
+    },
+	"dignity_healthservers": {
+      "description": "dignity_heathservers",
+      "type": "String"
+    }
+  }
+}
